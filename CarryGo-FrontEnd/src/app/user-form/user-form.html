@@ -1,0 +1,17 @@
+<h2>User Form</h2>
+
+<form (ngSubmit)="onSubmit()">
+  <input [(ngModel)]="user.name" name="name" placeholder="Name">
+  <br>
+
+  <input [(ngModel)]="user.email" name="email" placeholder="Email">
+  <br>
+
+  <input [(ngModel)]="user.phone" name="phone" placeholder="Phone">
+  <br>
+
+  <input [(ngModel)]="user.password" name="password" placeholder="Password">
+  <br>
+
+  <button type="submit">Submit</button>
+</form>
