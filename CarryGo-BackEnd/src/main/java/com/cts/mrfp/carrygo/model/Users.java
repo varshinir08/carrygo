@@ -10,27 +10,9 @@ public class Users {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="user_id")
     private Integer userId;
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Notifications> notifications;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private Wallets wallet;
 
-    public List<Notifications> getNotifications() {
-        return notifications;
-    }
 
-    public void setNotifications(List<Notifications> notifications) {
-        this.notifications = notifications;
-    }
-
-    public Wallets getWallet() {
-        return wallet;
-    }
-
-    public void setWallet(Wallets wallet) {
-        this.wallet = wallet;
-    }
 
     private String name;
     private String email;
