@@ -1,33 +1,38 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { TitleCasePipe } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';   // ✅ import RouterLink
+import { CommonModule, TitleCasePipe } from '@angular/common'; // Import CommonModule & Pipe
+import { Router, RouterLink } from '@angular/router'; // Import Router & RouterLink
 import { AuthService } from '../services/auth.service';
 
 @Component({
-selector: 'app-login',
-standalone: true,
-imports: [FormsModule, TitleCasePipe, RouterLink],   // ✅ add RouterLink here
-templateUrl: './login.html',
-styleUrls: ['./login.css']
+  selector: 'app-login',
+  standalone: true, // Ensure this is set to true
+  imports: [FormsModule, TitleCasePipe, RouterLink, CommonModule],
+  templateUrl: './login.html',
+  styleUrl: './login.css'
 })
 export class Login {
-loginData = { email: '', password: '', role: 'user' };
+  loginData = {
+    email: '',
+    password: '',
+    role: 'user' // default role
+  };
 
-constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
 
   onSubmit() {
-    if (!this.loginData.email || !this.loginData.password) {
-      alert('Please fill in all required fields.');
-      return;
-    }
-
     this.authService.login(this.loginData).subscribe({
-      next: () => {
-        alert(`Login successful as ${this.loginData.role}`);
-        this.router.navigate(['/register']); // ✅ or redirect somewhere else
+      next: (response) => {
+        console.log('Login successful', response);
+        // Navigate to the dashboard automatically
+        this.router.navigate(['/user-dashboard']);
       },
-      error: () => alert('Invalid credentials')
+      error: (err) => {
+        alert('Login failed: ' + (err.error || 'Invalid credentials'));
+      }
     });
   }
 }
