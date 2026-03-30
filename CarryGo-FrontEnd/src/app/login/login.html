@@ -1,0 +1,45 @@
+<div class="auth-container">
+  <div class="logo">
+    <img src="src/app/assets/images/carrygo-logo.png" alt="CarryGo Logo" />
+
+    <p class="tagline">Deliver Anything, Anytime</p>
+  </div>
+
+  <h2>Login to CarryGo</h2>
+  <p class="welcome">Welcome back! Please login to continue.</p>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button [class.active]="loginData.role === 'user'" (click)="loginData.role='user'">User Login</button>
+    <button [class.active]="loginData.role === 'commuter'" (click)="loginData.role='commuter'">Commuter Login</button>
+  </div>
+
+  <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input id="email" [(ngModel)]="loginData.email" name="email" placeholder="Enter your email or phone"
+             required email #email="ngModel" />
+      <div class="error" *ngIf="email.invalid && email.touched">Valid email is required</div>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input id="password" [(ngModel)]="loginData.password" name="password" type="password" placeholder="Enter your password"
+             required minlength="6" #password="ngModel" />
+      <div class="error" *ngIf="password.invalid && password.touched">Password must be at least 6 characters</div>
+    </div>
+
+    <a class="forgot-link" href="#">Forgot Password?</a>
+
+    <button type="submit" class="btn-primary" [disabled]="loginForm.invalid">
+      Login as {{ loginData.role | titlecase }}
+    </button>
+  </form>
+
+  <!-- ✅ Blue hyperlink to Register -->
+  <p class="switch-link">
+    Don’t have an account? <a routerLink="/register" class="register-link">Register here</a>
+  </p>
+
+  <footer>© 2026 CarryGo. All rights reserved.</footer>
+</div>
