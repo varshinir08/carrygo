@@ -1,0 +1,87 @@
+.container {
+  max-width: 700px;
+  margin: 30px auto;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: #ffffff;
+  padding: 20px;
+  margin: 15px 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.user-card {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  color: white;
+}
+
+.form-group input {
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  transition: 0.3s;
+}
+
+.form-group input:focus {
+  border-color: #4facfe;
+  outline: none;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  border: none;
+  color: white;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  transform: scale(1.03);
+}
+
+.delivery-card {
+  background: #f9f9f9;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 8px;
+  border-left: 5px solid #4facfe;
+}
+
+.route {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.arrow {
+  margin: 0 8px;
+}
+
+.details {
+  font-size: 14px;
+  color: #555;
+}
+
+.status {
+  margin-top: 5px;
+  font-weight: bold;
+  color: green;
+}
+
+.empty {
+  text-align: center;
+  color: #888;
+  padding: 10px;
+}

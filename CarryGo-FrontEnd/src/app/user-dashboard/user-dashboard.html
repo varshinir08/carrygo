@@ -1,0 +1,61 @@
+<div class="container">
+
+  <h1>📦 CarryGo Dashboard</h1>
+
+  <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+    <div class="card user-card" style="flex: 1; margin: 0;">
+      <h2>👤 Profile</h2>
+      <p><b>Name:</b> {{user.name}}</p>
+      <p><b>Email:</b> {{user.email}}</p>
+      <p><b>Phone:</b> {{user.phone}}</p>
+    </div>
+
+    <div class="card wallet-card" style="flex: 1; margin: 0; background: #f0fff4; border-left: 5px solid #48bb78;">
+      <h2>💰 Wallet Balance</h2>
+      <p style="font-size: 24px; font-weight: bold; color: #2f855a; margin: 10px 0;">
+        ₹{{wallet.balance}}
+      </p>
+      <p style="font-size: 12px; color: #666;">Last Updated: {{wallet.lastUpdated | date:'shortTime'}}</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📦 Create Delivery</h2>
+
+    <div class="form-group">
+      <input placeholder="Pickup Address" [(ngModel)]="delivery.pickupAddress">
+      <input placeholder="Drop Address" [(ngModel)]="delivery.dropAddress">
+      <input placeholder="Package Type" [(ngModel)]="delivery.packageType">
+      <input type="number" placeholder="Weight (kg)" [(ngModel)]="delivery.weightKg">
+    </div>
+
+    <button (click)="createDelivery()" [disabled]="isSubmitting">
+      {{ isSubmitting ? 'Creating...' : '🚀 Create Delivery' }}
+    </button>
+  </div>
+
+  <div class="card">
+    <h2>📋 My Deliveries</h2>
+
+    <div *ngIf="deliveries.length === 0" class="empty">
+      No deliveries yet
+    </div>
+
+    <div *ngFor="let d of deliveries" class="delivery-card">
+      <div class="route">
+        <span class="from">{{d.pickupAddress}}</span>
+        <span class="arrow">→</span>
+        <span class="to">{{d.dropAddress}}</span>
+      </div>
+
+      <div class="details">
+        <span>📦 {{d.packageType}}</span>
+        <span>⚖ {{d.weightKg}} kg</span>
+      </div>
+
+      <div class="status">
+        {{d.status}}
+      </div>
+    </div>
+  </div>
+</div>
