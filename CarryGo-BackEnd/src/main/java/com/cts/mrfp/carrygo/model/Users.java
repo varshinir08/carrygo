@@ -1,6 +1,9 @@
 package com.cts.mrfp.carrygo.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -32,9 +35,15 @@ public class Users {
         this.wallet = wallet;
     }
 
+    @NotBlank
     private String name;
+    @Email
+    @Column(unique = true)
     private String email;
+
+    @NotBlank
     private String phone;
+    @NotBlank
     private String password;
     private String role;
     private String authProvider;
@@ -48,7 +57,9 @@ public class Users {
 
     public Users() {}
 
-    public Users(Integer userId, String name, String email, String phone, String password, String role, String authProvider, String themePreference, String licenceNumber, LocalDate licenceExpiry, String vehicleType, String vehicleNumber, String vehicleModel) {
+    public Users(Integer userId, String name, String email, String phone, String password, String role, String authProvider,
+                 String themePreference, String licenceNumber, LocalDate licenceExpiry, String vehicleType, String vehicleNumber,
+                 String vehicleModel) {
         this.userId = userId;
         this.name = name;
         this.email = email;
