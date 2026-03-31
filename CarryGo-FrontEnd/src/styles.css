@@ -1,1 +1,27 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global Styles */
+
+/* Import Google Fonts or custom fonts if needed */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* Root CSS Variables */
+:root {
+  --primary-blue: #F0F8FF;
+  --white: #FFFFFF;
+  --emerald: #10B981;
+  --indigo: #4F46E5;
+  --text-dark: #1E293B;
+  --text-light: #64748B;
+}
+
+/* Global Styles */
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--primary-blue);
+  color: var(--text-dark);
+}
+
+* {
+  box-sizing: border-box;
+}
