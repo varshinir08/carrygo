@@ -1,0 +1,163 @@
+<div class="dashboard-wrapper" [attr.data-theme]="currentTheme">
+  <!-- Persistent Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-section"> 
+        <div class="logo-text">
+          <h3>CarryGo</h3>
+          <p>Porter Portal</p>
+        </div>
+      </div>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a *ngFor="let item of navItems" 
+         [routerLink]="item.route" 
+         class="nav-item"
+         [class.active]="item.active"
+         (click)="setActiveNav(item)">
+        <span class="nav-icon">{{ item.icon }}</span>
+        <span class="nav-label">{{ item.label }}</span>
+      </a>
+    </nav>
+  </aside>
+<div class="main-content">
+    <header class="top-header">
+      <div class="header-right">
+         <div class="availability-toggle always-enabled" [class.online]="isOnline" (click)="toggleStatus()" title="Toggle availability status">
+          <span class="toggle-indicator" [class.online]="isOnline"></span>
+          <span class="status-text">{{ isOnline ? 'Online' : 'Offline' }}</span>
+        </div>
+        
+        <div class="earnings-widget">
+          <span class="currency">$</span>
+          <span class="amount">{{ earningsToday | number:'1.2-2' }}</span>
+          <span class="label">Today</span>
+        </div>
+        
+         <button class="theme-toggle" (click)="toggleTheme()" [title]="'Switch to ' + (currentTheme === 'light' ? 'Dark' : 'Light') + ' mode'">
+          {{ currentTheme === 'light' ? '🌙' : '☀️' }}
+        </button>
+        
+         <button class="notification-bell" title="View notifications">
+          🔔
+          <span class="badge" *ngIf="notifications > 0">{{ notifications }}</span>
+        </button>
+        
+        <!-- User Profile Avatar & Dropdown -->
+        <div class="profile-section">
+          <div class="profile-avatar" (click)="toggleProfileDropdown()" [title]="porterProfile?.name || 'User Profile'">
+            <span class="avatar">{{ userInitials }}</span>
+          </div>
+          
+          <!-- Profile Dropdown Menu -->
+          <div class="profile-dropdown" [class.open]="showProfileDropdown">
+            <div class="dropdown-header">
+              <div class="dropdown-avatar">
+                <span>{{ userInitials }}</span>
+              </div>
+              <div class="dropdown-info">
+                <h4>{{ porterProfile?.name || 'Porter' }}</h4>
+                <p>{{ porterProfile?.email }}</p>
+              </div>
+            </div>
+            <hr class="dropdown-divider">
+            <button class="dropdown-item logout" (click)="logout()">
+              <span>🚪</span> Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="error-banner" *ngIf="errorMessage">
+      <span>⚠️ {{ errorMessage }}</span>
+    </div>
+
+    <!-- Home Page - Shows both offline and online content -->
+    <main class="dashboard-main">
+      <!-- Page Heading -->
+      <div class="page-header">
+        <div class="greeting">
+          <h1 class="page-title" *ngIf="porterProfile">Welcome back, {{ porterProfile!.name.split(' ')[0] }}! 👋</h1>
+          <h1 class="page-title" *ngIf="!porterProfile">Welcome to CarryGo! 👋</h1>
+          <p class="page-subtitle" *ngIf="porterProfile?.vehicleType && isOnline">Ready to deliver with your {{ porterProfile!.vehicleType }}</p>
+          <p class="page-subtitle" *ngIf="!porterProfile?.vehicleType && isOnline">Ready to deliver today</p>
+          <p class="page-subtitle" *ngIf="!isOnline">You are currently offline</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <section class="quick-actions" *ngIf="isOnline">
+        <div class="section-header">
+          <h2>Quick Actions</h2>
+          <p>Get started with common tasks</p>
+        </div>
+        <div class="actions-grid">
+          <a *ngFor="let action of quickActions" 
+             [routerLink]="action.route" 
+             class="action-card" 
+             [ngClass]="action.color"
+             [title]="action.desc">
+            <span class="action-icon">{{ action.icon }}</span>
+            <h3>{{ action.title }}</h3>
+            <p class="action-desc">{{ action.desc }}</p>
+          </a>
+        </div>
+      </section>
+
+      <!-- Services Section -->
+      <section class="services-section" *ngIf="isOnline">
+        <div class="section-header">
+          <h2>Our Services</h2>
+          <p>Explore the delivery services available to you</p>
+        </div>
+        <div class="services-grid">
+          <div *ngFor="let service of services" class="service-card" [style.border-top-color]="service.highlight">
+            <div class="service-icon-wrapper">
+              <span class="service-icon">{{ service.icon }}</span>
+            </div>
+            <h3>{{ service.title }}</h3>
+            <p>{{ service.desc }}</p>
+            <a href="#" class="service-link">Learn more →</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="stats-section" *ngIf="isOnline">
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div class="stat-content">
+            <span class="stat-label">Deliveries Completed</span>
+            <span class="stat-value">42</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-content">
+            <span class="stat-label">Rating</span>
+            <span class="stat-value">4.8 / 5</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-content">
+            <span class="stat-label">This Month</span>
+            <span class="stat-value">$1,240</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- About CarryGo Section -->
+      <section class="about-section">
+        <div class="about-card">
+          <div class="about-icon">🎯</div>
+          <h2>About CarryGo</h2>
+          <p>{{ about.mission }}</p>
+          <p class="about-subtext">Join thousands of reliable porters delivering across the region with competitive rates and flexible scheduling.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+

@@ -27,8 +27,12 @@ export class Login {
     this.authService.login(this.loginData).subscribe({
       next: (response) => {
         console.log('Login successful', response);
-        // Navigate to the dashboard automatically
-        this.router.navigate(['/user-dashboard']);
+        const user = this.authService.getCurrentUser();
+        if (user && user.role === 'user') {
+          this.router.navigate(['/user-dashboard']);
+        } else {
+          this.router.navigate(['/porter-dashboard']);
+        }
       },
       error: (err) => {
         alert('Login failed: ' + (err.error || 'Invalid credentials'));
