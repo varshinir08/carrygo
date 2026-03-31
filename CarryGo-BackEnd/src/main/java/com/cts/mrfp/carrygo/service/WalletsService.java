@@ -5,14 +5,20 @@ import com.cts.mrfp.carrygo.repository.WalletsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 public class WalletsService {
-
-    @Autowired
-    private WalletsRepository walletRepository;
+    @Autowired private WalletsRepository walletsRepo;
 
     public Wallets getWalletByUserId(Integer userId) {
-        return walletRepository.findByUserUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Wallet not found for user: " + userId));
+        return walletsRepo.findByUserUserId(userId).orElse(null);
+    }
+
+    public Wallets updateBalance(Integer userId, Float amount) {
+        Wallets wallet = walletsRepo.findByUserUserId(userId).orElseThrow();
+        wallet.setBalance(wallet.getBalance() + amount);
+        wallet.setLastUpdated(LocalDateTime.now());
+        return walletsRepo.save(wallet);
     }
 }
