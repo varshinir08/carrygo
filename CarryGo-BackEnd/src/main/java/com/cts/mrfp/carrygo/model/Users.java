@@ -1,11 +1,14 @@
 package com.cts.mrfp.carrygo.model;
 
-import jakarta.persistence.*;
+import java.time.LocalDate;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-
-import java.time.LocalDate;
-import java.util.List;
 
 @Entity
 public class Users {
@@ -36,6 +39,7 @@ public class Users {
     private String vehicleType;
     private String vehicleNumber;
     private String vehicleModel;
+    private Boolean isOnline = false;
 
     public Users() {}
 
@@ -84,4 +88,6 @@ public class Users {
     public void setVehicleNumber(String vehicleNumber) { this.vehicleNumber = vehicleNumber; }
     public String getVehicleModel() { return vehicleModel; }
     public void setVehicleModel(String vehicleModel) { this.vehicleModel = vehicleModel; }
+    public Boolean getIsOnline() { return isOnline; }
+    public void setIsOnline(Boolean isOnline) { this.isOnline = isOnline; }
 }
