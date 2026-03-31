@@ -40,4 +40,20 @@ public class UsersService {
     public Optional<Users> getUserById(Integer userId) {
         return usersRepository.findById(userId);
     }
+
+    // Retrieve user by email
+    public Optional<Users> getUserByEmail(String email) {
+        return usersRepository.findByEmail(email.trim());
+    }
+
+    // Update user online/offline status
+    public Optional<Users> updateUserStatus(Integer userId, Boolean isOnline) {
+        Optional<Users> user = usersRepository.findById(userId);
+        if (user.isPresent()) {
+            Users u = user.get();
+            u.setIsOnline(isOnline);
+            usersRepository.save(u);
+        }
+        return user;
+    }
 }
