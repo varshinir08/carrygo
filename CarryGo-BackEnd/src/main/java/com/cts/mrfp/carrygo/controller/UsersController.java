@@ -1,12 +1,20 @@
 package com.cts.mrfp.carrygo.controller;
 
-import com.cts.mrfp.carrygo.model.Users;
-import com.cts.mrfp.carrygo.service.UsersService;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
+import com.cts.mrfp.carrygo.model.Users;
+import com.cts.mrfp.carrygo.service.UsersService;
 
 @RestController
 @RequestMapping("/api/users")
@@ -42,6 +50,24 @@ public class UsersController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(@PathVariable Integer id) {
         return usersService.getUserById(id)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+     @GetMapping("/email/{email}")
+    public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
+        return usersService.getUserByEmail(email)
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+     @PutMapping("/{userId}/status")
+    public ResponseEntity<?> updateUserStatus(@PathVariable Integer userId, @RequestBody Map<String, Boolean> statusData) {
+        Boolean isOnline = statusData.get("is_online");
+        if (isOnline == null) {
+            return ResponseEntity.badRequest().body("is_online field is required");
+        }
+        return usersService.updateUserStatus(userId, isOnline)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
