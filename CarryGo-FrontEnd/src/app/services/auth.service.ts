@@ -17,8 +17,7 @@ export class AuthService {
   login(credentials: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/login`, credentials).pipe(
       tap((user: any) => {
-        // This saves the User object (including userId) to the browser's memory
-        if (user && user.userId) {
+         if (user && user.userId) {
           localStorage.setItem('currentUser', JSON.stringify(user));
           localStorage.setItem('userEmail', user.email);
           localStorage.setItem('userId', user.userId.toString());
@@ -27,30 +26,19 @@ export class AuthService {
     );
   }
 
-  // Helper to get the logged-in user's data anywhere in the app
-  getCurrentUser() {
+   getCurrentUser() {
     const user = localStorage.getItem('currentUser');
     return user ? JSON.parse(user) : null;
-  }
-
-  /**
-   * Get logged-in user's email
-   */
+  } 
   getLoggedInUserEmail(): string | null {
     return localStorage.getItem('userEmail');
   }
-
-  /**
-   * Get logged-in user's ID
-   */
+ 
   getLoggedInUserId(): number | null {
     const id = localStorage.getItem('userId');
     return id ? parseInt(id, 10) : null;
   }
-
-  /**
-   * Check if user is logged in
-   */
+ 
   isLoggedIn(): boolean {
     return !!localStorage.getItem('currentUser');
   }

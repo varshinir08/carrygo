@@ -1,6 +1,5 @@
-/* Professional Porter Dashboard CSS - Matching Login Page Style */
 
-/* Root Variables */
+
 :root {
   --primary-blue: #0078d7;
   --hover-blue: #005fa3;
@@ -11,8 +10,6 @@
   --bg-light: #f9f9f9;
   --shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-
-/* Host Wrapper */
 :host {
   display: flex;
   height: 100vh;
@@ -168,10 +165,7 @@
   height: 100vh;
   margin-left: 260px;
 }
-
-/* ==========================
-   TOP HEADER STYLING
-   ========================== */
+ 
 
 .top-header {
   height: 70px;
@@ -1389,7 +1383,6 @@
   margin: 0;
 }
 
-/* Responsive */
 @media (max-width: 1200px) {
   .actions-grid {
     flex-direction: column;
@@ -1423,7 +1416,6 @@
   }
 }
 
-/* Offline Home Page */
 .offline-home {
   display: flex;
   flex-direction: column;
@@ -1434,9 +1426,7 @@
 .offline-home .about-section {
   max-width: 600px;
   width: 100%;
-}
-
-/* Dark Theme Support */
+} 
 :host-context([theme="dark"]) {
   --bg-primary: #0F172A;
   --bg-secondary: #1E293B;
@@ -1444,8 +1434,6 @@
   --text-secondary: #94A3B8;
 }
 
-/* Smooth scroll */
 html {
   scroll-behavior: smooth;
 }
-

@@ -34,16 +34,13 @@ interface NavItem {
   selector: 'porter-dashboard',
   standalone: true,
   imports: [CommonModule, RouterLink],
-  templateUrl: './porter-homepage.component.html',
-  styleUrls: ['./porter-homepage.component.css'],
+  templateUrl: './porter-homepage.html',
+  styleUrls: ['./porter-homepage.css'],
   encapsulation: ViewEncapsulation.None
 })
 export class PorterDashboardComponent implements OnInit {
-  // User data from database
   porterProfile: PorterProfile | null = null;
-  walletData: WalletData | null = null;
-  
-  // UI state
+  walletData: WalletData | null = null; 
   isOnline: boolean = false;
   earningsToday: number = 0;
   notifications: number = 3;
@@ -133,21 +130,14 @@ export class PorterDashboardComponent implements OnInit {
       }
     });
   }
-
-  /**
-   * Generate initials from full name
-   */
+ 
   generateUserInitials(fullName: string): void {
     const nameParts = fullName.trim().split(' ');
     this.userInitials = nameParts
       .slice(0, 2)
       .map(part => part.charAt(0).toUpperCase())
       .join('');
-  }
-
-  /**
-   * Toggle online/offline status - update in database
-   */
+  } 
   toggleStatus(): void {
     this.isOnline = !this.isOnline;
     
@@ -155,22 +145,18 @@ export class PorterDashboardComponent implements OnInit {
       this.userService.updatePorterStatus(this.porterProfile.userId, this.isOnline).subscribe({
         next: (response) => {
           console.log('Status updated successfully:', response);
-          // Update the profile with the new status from backend
-          if (response.isOnline !== undefined) {
+           if (response.isOnline !== undefined) {
             this.isOnline = response.isOnline;
           }
         },
         error: (error) => {
           console.error('Error updating status:', error);
-          this.isOnline = !this.isOnline; // Revert on error
+          this.isOnline = !this.isOnline;  
         }
       });
     }
-  }
+  } 
 
-  /**
-   * Toggle theme preference
-   */
   toggleTheme(): void {
     this.currentTheme = this.currentTheme === 'light' ? 'dark' : 'light';
     localStorage.setItem('porterTheme', this.currentTheme);
@@ -179,10 +165,7 @@ export class PorterDashboardComponent implements OnInit {
       hostElement.setAttribute('data-theme', this.currentTheme);
     }
   }
-
-  /**
-   * Load theme preference from localStorage
-   */
+ 
   loadThemePreference(): void {
     const savedTheme = localStorage.getItem('porterTheme') as 'light' | 'dark' | null;
     if (savedTheme) {
@@ -193,10 +176,7 @@ export class PorterDashboardComponent implements OnInit {
       }
     }
   }
-
-  /**
-   * Set active navigation item based on current route
-   */
+ 
   setActiveNavItem(): void {
     const currentRoute = this.router.url;
     this.navItems.forEach(item => {
@@ -204,24 +184,18 @@ export class PorterDashboardComponent implements OnInit {
     });
   }
 
-  /**
-   * Set active navigation item
-   */
+   
   setActiveNav(item: NavItem): void {
     this.navItems.forEach(i => i.active = false);
     item.active = true;
   }
 
-  /**
-   * Toggle user profile dropdown
-   */
+   
   toggleProfileDropdown(): void {
     this.showProfileDropdown = !this.showProfileDropdown;
   }
 
-  /**
-   * Close profile dropdown when clicking outside
-   */
+  
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     const profileSection = document.querySelector('.profile-section') as HTMLElement;
@@ -230,17 +204,13 @@ export class PorterDashboardComponent implements OnInit {
     }
   }
 
-  /**
-   * View full profile
-   */
+   
   viewProfile(): void {
     this.router.navigate(['/profile']);
     this.showProfileDropdown = false;
   }
 
-  /**
-   * Logout user
-   */
+   
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/login']);

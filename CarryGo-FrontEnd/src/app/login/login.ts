@@ -6,7 +6,7 @@ import { AuthService } from '../services/auth.service';
 
 @Component({
   selector: 'app-login',
-  standalone: true, // Ensure this is set to true
+  standalone: true,  
   imports: [FormsModule, TitleCasePipe, RouterLink, CommonModule],
   templateUrl: './login.html',
   styleUrl: './login.css'
@@ -15,7 +15,7 @@ export class Login {
   loginData = {
     email: '',
     password: '',
-    role: 'user' // default role
+    role: 'user'  
   };
 
   constructor(

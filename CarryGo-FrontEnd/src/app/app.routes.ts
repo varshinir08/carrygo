@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { Login } from './login/login';
 import { Register } from './register/register';
 import { UserDashboard } from './user-dashboard/user-dashboard';
-import { PorterDashboardComponent } from './modules/porter-homepage.component';
+import { PorterDashboardComponent } from './homepage-porter/porter-homepage';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
