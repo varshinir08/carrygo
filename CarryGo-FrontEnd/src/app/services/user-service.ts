@@ -1,4 +1,3 @@
-
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
@@ -17,10 +16,10 @@ export interface PorterProfile {
 }
 
 export interface WalletData {
-  wallet_id: number;
-  user_id: number;
+  walletId: number;
+  userId: number;
   balance: number;
-  last_updated: string;
+  lastUpdated: string;
 }
 
 export interface PorterStatus {
@@ -33,39 +32,42 @@ export interface PorterStatus {
 export class UserService {
   private baseUrl = 'http://localhost:8081/api';
 
-  constructor(private http: HttpClient) {} 
+  constructor(private http: HttpClient) {}
 
-  getPorterDashboard(id: number): Observable<any> {
-    return this.http.get(`${this.baseUrl}/porter-dashboard/${id}`);
-  } 
   getPorterProfileByEmail(email: string): Observable<PorterProfile> {
     return this.http.get<PorterProfile>(`${this.baseUrl}/users/email/${email}`);
   }
 
- 
   getPorterProfileById(userId: number): Observable<PorterProfile> {
     return this.http.get<PorterProfile>(`${this.baseUrl}/users/${userId}`);
   }
- 
+
   getWalletByUserId(userId: number): Observable<WalletData> {
     return this.http.get<WalletData>(`${this.baseUrl}/wallets/user/${userId}`);
   }
- 
-  updatePorterStatus(userId: number, isOnline: boolean): Observable<PorterStatus> {
-    return this.http.put<PorterStatus>(`${this.baseUrl}/users/${userId}/status`, {
+
+  updatePorterStatus(userId: number, isOnline: boolean): Observable<PorterProfile> {
+    return this.http.put<PorterProfile>(`${this.baseUrl}/users/${userId}/status`, {
       is_online: isOnline
     });
   }
- 
+
   getPorterDeliveries(userId: number, limit: number = 10): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/deliveries/user/${userId}?limit=${limit}`);
-  } 
-  getPorterRatings(userId: number): Observable<any> {
-    return this.http.get(`${this.baseUrl}/ratings/user/${userId}`);
-  } 
+    return this.http.get<any[]>(`${this.baseUrl}/deliveries/user/${userId}`);
+  }
+
+  getAvailableDeliveries(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/deliveries/available`);
+  }
+
+  getPorterRatings(userId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/ratings/commuter/${userId}`);
+  }
+
   updatePorterProfile(userId: number, profileData: Partial<PorterProfile>): Observable<PorterProfile> {
     return this.http.put<PorterProfile>(`${this.baseUrl}/users/${userId}`, profileData);
-  } 
+  }
+
   getAllUsers(): Observable<PorterProfile[]> {
     return this.http.get<PorterProfile[]>(`${this.baseUrl}/users`);
   }

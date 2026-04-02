@@ -18,9 +18,10 @@ interface PorterProfile {
 }
 
 interface WalletData {
-  wallet_id: number;
+  walletId: number;
+  userId: number;
   balance: number;
-  last_updated: string;
+  lastUpdated: string;
 }
 
 interface NavItem {
@@ -119,16 +120,16 @@ export class PorterDashboardComponent implements OnInit {
    * Load wallet data for earnings display
    */
   loadWalletData(userId: number): void {
-    this.userService.getWalletByUserId(userId).subscribe({
-      next: (wallet: WalletData) => {
+    this.userService.getWalletByUserId(userId).subscribe(
+      (wallet: WalletData) => {
         this.walletData = wallet;
         this.earningsToday = wallet.balance;
       },
-      error: (error) => {
+      (error) => {
         console.error('Error loading wallet data:', error);
         this.earningsToday = 0;
       }
-    });
+    );
   }
  
   generateUserInitials(fullName: string): void {
