@@ -1,14 +1,11 @@
 package com.cts.mrfp.carrygo.controller;
 
-import com.cts.mrfp.carrygo.model.Transactions;
 import com.cts.mrfp.carrygo.model.Wallets;
-import com.cts.mrfp.carrygo.service.TransactionsService;
+import com.cts.mrfp.carrygo.dto.WalletsDTO;
 import com.cts.mrfp.carrygo.service.WalletsService;
+import com.cts.mrfp.carrygo.util.DTOConverter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/wallets")
@@ -16,11 +13,11 @@ import java.util.List;
 public class WalletsController {
 
     @Autowired private WalletsService walletService;
-    @Autowired private TransactionsService transactionsService;
 
     @GetMapping("/user/{userId}")
-    public Wallets getWalletBalance(@PathVariable Integer userId) {
-        return walletService.getWalletByUserId(userId);
+    public WalletsDTO getWalletBalance(@PathVariable Integer userId) {
+        Wallets wallet = walletService.getWalletByUserId(userId);
+        return DTOConverter.convertWalletsToDTO(wallet);
     }
 
 

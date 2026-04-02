@@ -2,7 +2,6 @@ package com.cts.mrfp.carrygo.service;
 
 import com.cts.mrfp.carrygo.model.Users;
 import com.cts.mrfp.carrygo.repository.UsersRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -11,7 +10,6 @@ import java.util.Optional;
 public class UsersService {
     private final UsersRepository usersRepository;
 
-    @Autowired
     public UsersService(UsersRepository usersRepository) {
         this.usersRepository = usersRepository;
     }

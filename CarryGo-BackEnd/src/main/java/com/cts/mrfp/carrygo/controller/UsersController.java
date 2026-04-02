@@ -2,7 +2,6 @@ package com.cts.mrfp.carrygo.controller;
 
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +13,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cts.mrfp.carrygo.model.Users;
+import com.cts.mrfp.carrygo.dto.UsersDTO;
 import com.cts.mrfp.carrygo.service.UsersService;
+import com.cts.mrfp.carrygo.util.DTOConverter;
 
 @RestController
 @RequestMapping("/api/users")
@@ -22,16 +23,16 @@ import com.cts.mrfp.carrygo.service.UsersService;
 public class UsersController {
     private final UsersService usersService;
 
-    @Autowired
     public UsersController(UsersService usersService) {
         this.usersService = usersService;
     }
 
     // Registration endpoint
     @PostMapping("/register")
-    public ResponseEntity<Users> register(@RequestBody Users user) {
+    public ResponseEntity<UsersDTO> register(@RequestBody UsersDTO userDTO) {
+        Users user = DTOConverter.convertDTOToUsers(userDTO);
         Users saved = usersService.register(user);
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(DTOConverter.convertUsersToDTO(saved));
     }
 
     // Login endpoint
@@ -42,22 +43,22 @@ public class UsersController {
         String role = loginData.get("role");
 
         return usersService.login(email, password, role)
-                .<ResponseEntity<?>>map(ResponseEntity::ok) // success → Users object
-                .orElseGet(() -> ResponseEntity.status(401).body("Invalid credentials")); // failure → String
+                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(DTOConverter.convertUsersToDTO(user)))
+                .orElseGet(() -> ResponseEntity.status(401).body("Invalid credentials"));
     }
 
     // Retrieve user by ID
     @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(@PathVariable Integer id) {
         return usersService.getUserById(id)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(DTOConverter.convertUsersToDTO(user)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
      @GetMapping("/email/{email}")
     public ResponseEntity<?> getUserByEmail(@PathVariable String email) {
         return usersService.getUserByEmail(email)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(DTOConverter.convertUsersToDTO(user)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -68,7 +69,7 @@ public class UsersController {
             return ResponseEntity.badRequest().body("is_online field is required");
         }
         return usersService.updateUserStatus(userId, isOnline)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(DTOConverter.convertUsersToDTO(user)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }
