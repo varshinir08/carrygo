@@ -31,7 +31,7 @@ public class UsersDTO {
     // Constructors
     public UsersDTO() {}
 
-    public UsersDTO(Integer userId, String name, String email, String phone, String password, 
+    public UsersDTO(Integer userId, String name, String email, String phone, 
                    String role, String authProvider, String themePreference, String licenceNumber, 
                    LocalDate licenceExpiry, String vehicleType, String vehicleNumber, 
                    String vehicleModel, Boolean isOnline) {
