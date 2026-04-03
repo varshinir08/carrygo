@@ -1,10 +1,10 @@
 package com.cts.mrfp.carrygo.service;
 
-import com.cts.mrfp.carrygo.model.Services;
-import com.cts.mrfp.carrygo.repository.ServiceRepository;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import com.cts.mrfp.carrygo.model.Services;
+import com.cts.mrfp.carrygo.repository.ServiceRepository;
 
 import java.util.List;
 import java.util.Optional;
