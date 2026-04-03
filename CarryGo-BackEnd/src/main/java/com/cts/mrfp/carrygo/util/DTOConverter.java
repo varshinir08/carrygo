@@ -25,7 +25,6 @@ public class DTOConverter {
             user.getName(),
             user.getEmail(),
             user.getPhone(),
-            user.getPassword(),
             user.getRole(),
             user.getAuthProvider(),
             user.getThemePreference(),
@@ -47,7 +46,7 @@ public class DTOConverter {
             dto.getName(),
             dto.getEmail(),
             dto.getPhone(),
-            dto.getPassword(),
+            null,  // password not included in DTO
             dto.getRole(),
             dto.getAuthProvider(),
             dto.getThemePreference(),
