@@ -1,7 +1,8 @@
 package com.cts.mrfp.carrygo.service;
 
 import com.cts.mrfp.carrygo.model.Services;
-import com.cts.mrfp.carrygo.repository.ServicesRepository;
+import com.cts.mrfp.carrygo.repository.ServiceRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +13,7 @@ import java.util.Optional;
 public class ServicesService {
 
     @Autowired
-    private ServicesRepository servicesRepository;
+    private ServiceRepository servicesRepository;
 
     public List<Services> getAllServices() {
         return servicesRepository.findAll();
