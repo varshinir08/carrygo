@@ -1,131 +1,172 @@
-/* Container */
+/* ════════════════════ CARD ════════════════════ */
 .auth-container {
+  width: 100%;
   max-width: 420px;
-  margin: 60px auto;
-  padding: 30px;
-  border-radius: 8px;
+  margin: 40px auto;
+  padding: 36px 32px 28px;
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.12);
   text-align: center;
   font-family: 'Segoe UI', Arial, sans-serif;
 }
 
-/* Logo */
-.logo img {
-  max-width: 80px;
-  margin-bottom: 10px;
+/* ════════════════════ LOGO ════════════════════ */
+.logo {
+  width: 180px;
+  display: block;
+  margin: 0 auto 6px auto;
 }
 
-.logo h1 {
-  font-size: 28px;
-  font-weight: bold;
-  color: #ff6600; /* CarryGo orange */
+.logo img {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .tagline {
-  font-size: 14px;
-  color: #666;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 20px;
 }
 
-/* Tabs */
+/* ════════════════════ HEADING ════════════════════ */
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 4px;
+}
+
+.welcome {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+/* ════════════════════ TABS ════════════════════ */
 .tabs {
   display: flex;
-  margin: 20px 0;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  margin: 0 0 20px;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 10px;
   overflow: hidden;
+  background: #eff6ff;
 }
 
 .tabs button {
   flex: 1;
-  padding: 12px;
+  padding: 11px;
   border: none;
-  background: #f9f9f9;
+  background: transparent;
   cursor: pointer;
   font-weight: 500;
+  font-size: 13px;
+  color: #64748b;
+  transition: all 0.2s;
 }
 
 .tabs button.active {
-  background: #0078d7; /* CarryGo blue */
+  background: #2563eb;
   color: #fff;
+  font-weight: 600;
 }
 
-/* Form */
+/* ════════════════════ FORM ════════════════════ */
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 14px;
   text-align: left;
 }
 
 label {
   display: block;
   margin-bottom: 5px;
-  font-size: 13px;
-  color: #444;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 input {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: #f8fafc;
+  transition: border-color 0.2s, background 0.2s;
+  outline: none;
 }
 
-/* Buttons */
+input:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ════════════════════ BUTTONS ════════════════════ */
 .btn-primary {
   width: 100%;
   padding: 12px;
-  background: #0078d7;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #fff;
   border: none;
-  border-radius: 4px;
-  font-weight: bold;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  margin-top: 4px;
 }
 
-.btn-primary:hover {
-  background: #005fa3;
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
 }
 
-/* Links */
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ════════════════════ LINKS ════════════════════ */
 .forgot-link {
   display: block;
-  margin: 10px 0;
-  font-size: 13px;
-  color: #0078d7;
-  text-decoration: underline;
+  text-align: right;
+  margin: -6px 0 14px;
+  font-size: 12px;
+  color: #2563eb;
+  text-decoration: none;
 }
+.forgot-link:hover { text-decoration: underline; }
 
 .switch-link {
-  margin-top: 15px;
+  margin-top: 16px;
   font-size: 13px;
+  color: #64748b;
 }
 
 .register-link {
-  color: #0078d7;       /* CarryGo blue */
-  text-decoration: underline;
-  cursor: pointer;
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
 }
+.register-link:hover { text-decoration: underline; }
 
-.register-link:hover {
-  color: #005fa3;       /* darker blue on hover */
-}
-
-/* Error messages */
+/* ════════════════════ ERRORS ════════════════════ */
 .error {
-  font-size: 12px;
-  color: red;
+  font-size: 11px;
+  color: #dc2626;
+  margin-top: 4px;
 }
 
-/* Footer */
+/* ════════════════════ FOOTER ════════════════════ */
 footer {
   margin-top: 20px;
-  font-size: 12px;
-  color: #999;
-}
-.logo {
-  width: 150px;
-  display: block;
-  margin: 0 auto 20px auto;
+  font-size: 11px;
+  color: #94a3b8;
 }
 
 .google-login-btn {
@@ -133,12 +174,15 @@ footer {
   align-items: center;
   justify-content: center;
   background: white;
-  border: 1px solid #ccc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
   padding: 10px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  gap: 8px;
+  width: 100%;
+  transition: border-color 0.2s;
 }
-
-.google-logo {
-  width: 20px;
-  margin-right: 10px;
-}
+.google-login-btn:hover { border-color: #2563eb; }
+.google-logo { width: 20px; }

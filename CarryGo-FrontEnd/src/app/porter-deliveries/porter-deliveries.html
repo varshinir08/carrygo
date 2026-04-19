@@ -1,0 +1,217 @@
+<div class="dashboard-wrapper">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/images/carrygo-logo.png" alt="CarryGo" class="sidebar-logo-img">
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-dashboard', porterProfile.userId] : ['/porter-dashboard']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-deliveries', porterProfile.userId] : ['/porter-deliveries']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 8h14M5 8a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v.5"/>
+          <path d="M5 8l-.867 9.143A2 2 0 006.126 19h11.748a2 2 0 001.993-1.857L19 8"/>
+        </svg>
+        <span>Deliveries</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-kyc', porterProfile.userId] : ['/porter-kyc']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>KYC Verification</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-routes', porterProfile.userId] : ['/porter-routes']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
+        </svg>
+        <span>My Routes</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-profile', porterProfile.userId] : ['/porter-profile']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        <span>Profile</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-content">
+
+    <!-- Header -->
+    <header class="top-header">
+      <h2 class="header-title">Deliveries</h2>
+      <div class="header-actions">
+        <div class="status-switch-wrap" [class.is-online]="isOnline" [class.toggling]="isToggling" (click)="toggleStatus()" role="switch" [attr.aria-checked]="isOnline" tabindex="0" (keydown.space)="toggleStatus()">
+          <div class="switch-track">
+            <span class="switch-label-off">Offline</span>
+            <span class="switch-label-on">Online</span>
+            <div class="switch-thumb">
+              <span class="thumb-pulse"></span>
+            </div>
+          </div>
+        </div>
+        <div class="status-toast-badge" [class.show]="statusToast" [class.online]="isOnline">
+          <span class="toast-dot"></span>{{ statusToast }}
+        </div>
+        <div class="earnings-chip">
+          <span>&#8377;</span>
+          <span class="earnings-amount">{{ earningsToday | number:'1.0-0' }}</span>
+          <span class="earnings-label">today</span>
+        </div>
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+        <div class="profile-section">
+          <button class="avatar-btn" (click)="toggleProfileDropdown()">{{ userInitials }}</button>
+          <div class="profile-dropdown" [class.open]="showProfileDropdown">
+            <div class="dropdown-header">
+              <div class="dropdown-avatar">{{ userInitials }}</div>
+              <div>
+                <div class="dropdown-name">{{ porterProfile?.name }}</div>
+                <div class="dropdown-email">{{ porterProfile?.email }}</div>
+              </div>
+            </div>
+            <hr/>
+            <button class="dropdown-logout" (click)="logout()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="deliveries-main">
+
+      <!-- Page heading -->
+      <div class="page-heading">
+        <h1>Delivery history</h1>
+        <p>Track and manage your deliveries</p>
+      </div>
+
+      <!-- Search -->
+      <div class="search-bar">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          class="search-input"
+          type="text"
+          placeholder="Search by location or tracking ID..."
+          [(ngModel)]="searchQuery"
+          (input)="onSearch()"
+        />
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="filter-tabs">
+        <button class="tab-btn" [class.active]="activeFilter === 'all'" (click)="setFilter('all')">
+          All <span class="tab-count">{{ counts.all }}</span>
+        </button>
+        <button class="tab-btn" [class.active]="activeFilter === 'active'" (click)="setFilter('active')">
+          Active <span class="tab-count">{{ counts.active }}</span>
+        </button>
+        <button class="tab-btn" [class.active]="activeFilter === 'completed'" (click)="setFilter('completed')">
+          Completed <span class="tab-count">{{ counts.completed }}</span>
+        </button>
+        <button class="tab-btn" [class.active]="activeFilter === 'cancelled'" (click)="setFilter('cancelled')">
+          Cancelled <span class="tab-count">{{ counts.cancelled }}</span>
+        </button>
+      </div>
+
+      <!-- Active deliveries -->
+      <ng-container *ngIf="activeDeliveries.length > 0">
+        <div class="section-label">
+          <span class="section-dot green-dot"></span>
+          <span>Active deliveries</span>
+        </div>
+
+        <div class="delivery-card" *ngFor="let d of activeDeliveries">
+          <div class="delivery-icon" [ngClass]="'icon-' + getIconType(d.status)">
+            <!-- Truck -->
+            <svg *ngIf="getIconType(d.status) === 'truck'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22">
+              <rect x="1" y="3" width="15" height="13" rx="1"/>
+              <path d="M16 8h4l3 5v3h-7V8z"/>
+              <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+            <!-- Clock -->
+            <svg *ngIf="getIconType(d.status) === 'clock'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+
+          <div class="delivery-info">
+            <div class="delivery-route">{{ d.pickupAddress }} &rarr; {{ d.dropAddress }}</div>
+            <div class="delivery-meta">
+              {{ formatOrderId(d.deliveryId) }} &middot; {{ d.packageType || 'Package' }} &middot; {{ formatDate(d.createdAt) }}
+            </div>
+          </div>
+
+          <div class="delivery-right">
+            <div class="delivery-amount">&#8377;{{ d.totalAmount | number:'1.0-0' }}</div>
+            <span class="status-badge" [ngClass]="getStatusClass(d.status)">{{ getStatusLabel(d.status) }}</span>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Past deliveries -->
+      <ng-container *ngIf="pastDeliveries.length > 0">
+        <div class="section-label">
+          <span class="section-dot grey-dot"></span>
+          <span>Past deliveries</span>
+        </div>
+
+        <div class="delivery-card" *ngFor="let d of pastDeliveries">
+          <div class="delivery-icon" [ngClass]="'icon-' + getIconType(d.status)">
+            <!-- Checkmark -->
+            <svg *ngIf="getIconType(d.status) === 'check'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <!-- Cancel X -->
+            <svg *ngIf="getIconType(d.status) === 'cancel'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </div>
+
+          <div class="delivery-info">
+            <div class="delivery-route">{{ d.pickupAddress }} &rarr; {{ d.dropAddress }}</div>
+            <div class="delivery-meta">
+              {{ formatOrderId(d.deliveryId) }} &middot; {{ d.packageType || 'Package' }} &middot; {{ formatDate(d.createdAt) }}
+            </div>
+          </div>
+
+          <div class="delivery-right">
+            <div class="delivery-amount">&#8377;{{ d.totalAmount | number:'1.0-0' }}</div>
+            <span class="status-badge" [ngClass]="getStatusClass(d.status)">{{ getStatusLabel(d.status) }}</span>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Empty state -->
+      <div class="empty-state" *ngIf="filteredDeliveries.length === 0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" width="48" height="48">
+          <path d="M5 8h14M5 8a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v.5"/>
+          <path d="M5 8l-.867 9.143A2 2 0 006.126 19h11.748a2 2 0 001.993-1.857L19 8"/>
+        </svg>
+        <p>No deliveries found</p>
+      </div>
+
+    </main>
+  </div>
+</div>

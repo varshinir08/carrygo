@@ -53,6 +53,11 @@ public class DeliveriesDTO {
     private String status;
     private LocalDateTime createdAt;
 
+    // Commuter (porter) details — populated when delivery is ACCEPTED or later
+    private String commuterName;
+    private String commuterPhone;
+    private String commuterVehicle;
+
     // Constructors
     public DeliveriesDTO() {}
 
@@ -178,4 +183,13 @@ public class DeliveriesDTO {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getCommuterName() { return commuterName; }
+    public void setCommuterName(String commuterName) { this.commuterName = commuterName; }
+
+    public String getCommuterPhone() { return commuterPhone; }
+    public void setCommuterPhone(String commuterPhone) { this.commuterPhone = commuterPhone; }
+
+    public String getCommuterVehicle() { return commuterVehicle; }
+    public void setCommuterVehicle(String commuterVehicle) { this.commuterVehicle = commuterVehicle; }
 }

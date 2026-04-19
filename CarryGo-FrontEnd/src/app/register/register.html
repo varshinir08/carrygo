@@ -78,57 +78,10 @@
       </div>
     </div>
 
-    <!-- Commuter fields -->
-    <div *ngIf="user.role === 'commuter'">
-      <div class="form-group">
-        <label for="licenceNumber">Licence Number</label>
-        <input id="licenceNumber" [(ngModel)]="user.licenceNumber" name="licenceNumber"
-               placeholder="🪪 Licence Number"
-               required #licenceNumber="ngModel"/>
-        <div class="error" *ngIf="licenceNumber.invalid && licenceNumber.touched">
-          Licence number is required
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="licenceExpiry">Licence Expiry</label>
-        <input id="licenceExpiry" [(ngModel)]="user.licenceExpiry" name="licenceExpiry"
-               type="date" placeholder="📅 Licence Expiry"
-               required #licenceExpiry="ngModel"/>
-        <div class="error" *ngIf="licenceExpiry.invalid && licenceExpiry.touched">
-          Licence expiry date is required
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="vehicleType">Vehicle Type</label>
-        <input id="vehicleType" [(ngModel)]="user.vehicleType" name="vehicleType"
-               placeholder="🚲 Vehicle Type"
-               required #vehicleType="ngModel"/>
-        <div class="error" *ngIf="vehicleType.invalid && vehicleType.touched">
-          Vehicle type is required
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="vehicleNumber">Vehicle Number</label>
-        <input id="vehicleNumber" [(ngModel)]="user.vehicleNumber" name="vehicleNumber"
-               placeholder="🚘 Vehicle Number"
-               required pattern="^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$" #vehicleNumber="ngModel"/>
-        <div class="error" *ngIf="vehicleNumber.errors?.['pattern'] && vehicleNumber.touched">
-          Format: TN09AB1234
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="vehicleModel">Vehicle Model</label>
-        <input id="vehicleModel" [(ngModel)]="user.vehicleModel" name="vehicleModel"
-               placeholder="🚗 Vehicle Model"
-               required #vehicleModel="ngModel"/>
-        <div class="error" *ngIf="vehicleModel.invalid && vehicleModel.touched">
-          Vehicle model is required
-        </div>
-      </div>
+    <!-- Commuter info banner -->
+    <div class="commuter-info" *ngIf="user.role === 'commuter'">
+      <span class="info-icon">🛈</span>
+      <span>Vehicle and licence details can be completed in the <strong>KYC section</strong> after registration.</span>
     </div>
 
     <!-- Terms checkbox -->

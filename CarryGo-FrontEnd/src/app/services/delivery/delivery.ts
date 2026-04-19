@@ -22,7 +22,37 @@ export class Delivery {
     return this.http.get<any[]>(`${this.apiUrl}/available`);
   }
 
+  /** Returns PENDING deliveries whose route matches the given porter's routes. */
+  getMatchedDeliveries(porterId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/matched/${porterId}`);
+  }
+
+  /** Returns the count of online porters that match the given coordinates. */
+  getMatchingPortersCount(
+    pickupLat?: number, pickupLng?: number,
+    dropLat?: number,   dropLng?: number
+  ): Observable<number> {
+    let params: any = {};
+    if (pickupLat != null) params['pickupLat'] = pickupLat;
+    if (pickupLng != null) params['pickupLng'] = pickupLng;
+    if (dropLat   != null) params['dropLat']   = dropLat;
+    if (dropLng   != null) params['dropLng']   = dropLng;
+    return this.http.get<number>(`${this.apiUrl}/matching-porters-count`, { params });
+  }
+
   updateDeliveryStatus(deliveryId: number, status: string): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/${deliveryId}/status`, { status });
+    return this.http.patch(`${this.apiUrl}/${deliveryId}/status`, null, { params: { status } });
+  }
+
+  acceptDelivery(deliveryId: number, commuterId: number): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/${deliveryId}/accept`, null, { params: { commuterId } });
+  }
+
+  getDeliveryById(deliveryId: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/${deliveryId}`);
+  }
+
+  getCommuterDeliveries(commuterId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/commuter/${commuterId}`);
   }
 }

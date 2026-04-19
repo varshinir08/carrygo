@@ -46,7 +46,7 @@ public class DTOConverter {
             dto.getName(),
             dto.getEmail(),
             dto.getPhone(),
-            null,  // password not included in DTO
+            dto.getPassword(),
             dto.getRole(),
             dto.getAuthProvider(),
             dto.getThemePreference(),
@@ -65,10 +65,10 @@ public class DTOConverter {
         if (delivery == null) {
             return null;
         }
-        Integer senderId = delivery.getSender() != null ? delivery.getSender().getUserId() : null;
+        Integer senderId   = delivery.getSender()   != null ? delivery.getSender().getUserId()   : null;
         Integer commuterId = delivery.getCommuter() != null ? delivery.getCommuter().getUserId() : null;
-        
-        return new DeliveriesDTO(
+
+        DeliveriesDTO dto = new DeliveriesDTO(
             delivery.getDeliveryId(),
             senderId,
             commuterId,
@@ -98,6 +98,13 @@ public class DTOConverter {
             delivery.getStatus(),
             delivery.getCreatedAt()
         );
+        // Attach accepted porter's details so the user dashboard can display them
+        if (delivery.getCommuter() != null) {
+            dto.setCommuterName(delivery.getCommuter().getName());
+            dto.setCommuterPhone(delivery.getCommuter().getPhone());
+            dto.setCommuterVehicle(delivery.getCommuter().getVehicleType());
+        }
+        return dto;
     }
 
     // Services conversions

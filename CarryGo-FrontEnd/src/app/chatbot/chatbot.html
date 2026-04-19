@@ -1,0 +1,108 @@
+<!-- ════════════ FLOATING BUTTON ════════════ -->
+<button class="cb-fab" (click)="toggle()" [class.open]="isOpen" aria-label="Open CarryBot">
+  <svg *ngIf="!isOpen" width="26" height="26" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round"
+      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+  </svg>
+  <svg *ngIf="isOpen" width="22" height="22" fill="none" stroke="#fff" stroke-width="2.5" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+  </svg>
+  <span class="cb-badge" *ngIf="!isOpen && unread > 0">{{ unread }}</span>
+</button>
+
+<!-- ════════════ CHAT WINDOW ════════════ -->
+<div class="cb-window" [class.open]="isOpen">
+
+  <!-- Header -->
+  <div class="cb-header">
+    <div class="cb-header-info">
+      <div class="cb-bot-avatar">
+        <svg width="20" height="20" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        <span class="cb-online-dot"></span>
+      </div>
+      <div>
+        <div class="cb-bot-name">{{ ui.title }}</div>
+        <div class="cb-bot-sub">{{ ui.subtitle }}</div>
+      </div>
+    </div>
+
+    <!-- Language switcher -->
+    <div class="cb-lang-tabs">
+      <button
+        *ngFor="let l of langs"
+        class="cb-lang-btn"
+        [class.active]="lang === l.code"
+        (click)="switchLang(l.code)"
+      >{{ l.label }}</button>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="cb-body" #chatBody>
+
+    <div *ngFor="let msg of messages" class="cb-msg-wrap" [class.user]="msg.from === 'user'">
+      <!-- Bot avatar -->
+      <div class="cb-msg-avatar" *ngIf="msg.from === 'bot'">
+        <svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+      </div>
+
+      <div class="cb-bubble-col">
+        <div class="cb-bubble" [class.bot]="msg.from === 'bot'" [class.usr]="msg.from === 'user'">
+          <span [innerHTML]="formatText(msg.text)"></span>
+        </div>
+        <div class="cb-time" [class.usr-time]="msg.from === 'user'">{{ msg.time }}</div>
+      </div>
+    </div>
+
+    <!-- Typing indicator -->
+    <div class="cb-msg-wrap" *ngIf="isTyping">
+      <div class="cb-msg-avatar">
+        <svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+      </div>
+      <div class="cb-bubble bot cb-typing">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <!-- Navigation CTA -->
+    <div class="cb-nav-cta" *ngIf="pendingNav && !isTyping">
+      <button class="cb-nav-btn" (click)="navigate()">{{ getNavLabel() }}</button>
+    </div>
+  </div>
+
+  <!-- Quick replies -->
+  <div class="cb-quick-wrap">
+    <div class="cb-quick-scroll">
+      <button
+        *ngFor="let q of quickReplies"
+        class="cb-quick-btn"
+        (click)="onQuickReply(q.action)"
+      >{{ q.label }}</button>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="cb-input-row">
+    <input
+      class="cb-input"
+      [placeholder]="ui.placeholder"
+      [(ngModel)]="inputText"
+      (keydown.enter)="send()"
+      autocomplete="off"
+    />
+    <button class="cb-send-btn" (click)="send()" [disabled]="!inputText.trim()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+      </svg>
+    </button>
+  </div>
+</div>

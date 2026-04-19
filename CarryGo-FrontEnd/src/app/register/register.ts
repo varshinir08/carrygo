@@ -13,19 +13,14 @@ styleUrls: ['./register.css']
 })
 export class Register {
 user = {
-name: '',
-email: '',
-phone: '',
-countryCode: '+91',   // ✅ added property
-password: '',
-confirmPassword: '',
-role: 'user',
-licenceNumber: '',
-licenceExpiry: '',
-vehicleType: '',
-vehicleNumber: '',
-vehicleModel: '',
-agree: false
+  name: '',
+  email: '',
+  phone: '',
+  countryCode: '+91',
+  password: '',
+  confirmPassword: '',
+  role: 'user',
+  agree: false
 };
 
 constructor(private authService: AuthService) {}

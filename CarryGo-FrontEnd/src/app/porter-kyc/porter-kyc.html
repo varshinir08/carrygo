@@ -1,0 +1,629 @@
+<div class="dashboard-wrapper">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/images/carrygo-logo.png" alt="CarryGo" class="sidebar-logo-img">
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-dashboard', porterProfile.userId] : ['/porter-dashboard']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-deliveries', porterProfile.userId] : ['/porter-deliveries']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 8h14M5 8a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v.5"/>
+          <path d="M5 8l-.867 9.143A2 2 0 006.126 19h11.748a2 2 0 001.993-1.857L19 8"/>
+        </svg>
+        <span>Deliveries</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-kyc', porterProfile.userId] : ['/porter-kyc']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>KYC Verification</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-routes', porterProfile.userId] : ['/porter-routes']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
+        </svg>
+        <span>My Routes</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-profile', porterProfile.userId] : ['/porter-profile']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        <span>Profile</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────────────────────────── -->
+  <div class="main-content">
+
+    <!-- Header -->
+    <header class="top-header">
+      <h2 class="header-title">KYC Verification</h2>
+      <div class="header-actions">
+        <div class="status-switch-wrap" [class.is-online]="isOnline" [class.toggling]="isToggling" (click)="toggleStatus()" role="switch" [attr.aria-checked]="isOnline" tabindex="0" (keydown.space)="toggleStatus()">
+          <div class="switch-track">
+            <span class="switch-label-off">Offline</span>
+            <span class="switch-label-on">Online</span>
+            <div class="switch-thumb">
+              <span class="thumb-pulse"></span>
+            </div>
+          </div>
+        </div>
+        <div class="status-toast-badge" [class.show]="statusToast" [class.online]="isOnline">
+          <span class="toast-dot"></span>{{ statusToast }}
+        </div>
+        <div class="earnings-chip">
+          <span>&#8377;</span>
+          <span>{{ earningsToday | number:'1.0-0' }}</span>
+          <span class="earn-lbl">today</span>
+        </div>
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+        <div class="profile-section">
+          <button class="avatar-btn" (click)="toggleProfileDropdown()">{{ userInitials }}</button>
+          <div class="profile-dropdown" [class.open]="showProfileDropdown">
+            <div class="dd-header">
+              <div class="dd-avatar">{{ userInitials }}</div>
+              <div><div class="dd-name">{{ porterProfile?.name }}</div><div class="dd-email">{{ porterProfile?.email }}</div></div>
+            </div>
+            <hr class="dd-hr"/>
+            <button class="dd-logout" (click)="logout()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="kyc-body">
+
+      <!-- ── Stepper ──────────────────────────────────────────────── -->
+      <div class="stepper-wrap">
+        <div class="stepper">
+          <ng-container *ngFor="let s of steps; let i = index">
+            <div class="step-item" [class.done]="i < currentStep" [class.active]="i === currentStep" (click)="goToStep(i)">
+              <div class="step-circle">
+                <svg *ngIf="i < currentStep" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span *ngIf="i >= currentStep">{{ i + 1 }}</span>
+              </div>
+              <span class="step-label">{{ s.label }}</span>
+            </div>
+            <div *ngIf="i < steps.length - 1" class="step-line" [class.done]="i < currentStep"></div>
+          </ng-container>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="progress-meta">
+          <span>Step {{ currentStep + 1 }} of {{ steps.length }}</span>
+          <span class="prog-pct">{{ progress }}% complete</span>
+        </div>
+        <div class="prog-track"><div class="prog-fill" [style.width.%]="progress"></div></div>
+      </div>
+
+      <!-- ── Step content ─────────────────────────────────────────── -->
+      <div class="form-card">
+
+        <!-- ━━ STEP 1: Personal ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <div *ngIf="currentStep === 0" class="step-panel">
+          <div class="panel-head">
+            <div class="panel-icon icon-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="panel-title">Personal Information</h2>
+              <p class="panel-sub">Let's start with your basic details</p>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field" [class.has-error]="hasError('fullName')">
+              <label>Full name <span class="req">*</span></label>
+              <input type="text" [(ngModel)]="form.fullName" placeholder="As it appears on your government ID"/>
+              <span class="err-msg" *ngIf="hasError('fullName')">{{ errors['fullName'] }}</span>
+            </div>
+
+            <div class="field-row">
+              <div class="field" [class.has-error]="hasError('dob')">
+                <label>Date of birth <span class="req">*</span></label>
+                <input type="date" [(ngModel)]="form.dob"/>
+                <span class="field-hint" *ngIf="!hasError('dob')">Must be 18 years or older</span>
+                <span class="err-msg" *ngIf="hasError('dob')">{{ errors['dob'] }}</span>
+              </div>
+              <div class="field" [class.has-error]="hasError('gender')">
+                <label>Gender <span class="req">*</span></label>
+                <div class="gender-grid">
+                  <button class="gender-opt" [class.sel]="form.gender==='male'"   (click)="form.gender='male'">&#9794; Male</button>
+                  <button class="gender-opt" [class.sel]="form.gender==='female'" (click)="form.gender='female'">&#9792; Female</button>
+                  <button class="gender-opt" [class.sel]="form.gender==='other'"  (click)="form.gender='other'">&#8734; Other</button>
+                </div>
+                <span class="err-msg" *ngIf="hasError('gender')">{{ errors['gender'] }}</span>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field" [class.has-error]="hasError('phone')">
+                <label>Mobile number <span class="req">*</span></label>
+                <div class="phone-wrap">
+                  <span class="phone-pre">+91</span>
+                  <input type="tel" [(ngModel)]="form.phone" placeholder="10-digit number" maxlength="10"/>
+                </div>
+                <span class="err-msg" *ngIf="hasError('phone')">{{ errors['phone'] }}</span>
+              </div>
+              <div class="field" [class.has-error]="hasError('email')">
+                <label>Email address <span class="req">*</span></label>
+                <input type="email" [(ngModel)]="form.email" placeholder="you&#64;example.com"/>
+                <span class="field-hint" *ngIf="!hasError('email')">Important updates will be sent here</span>
+                <span class="err-msg" *ngIf="hasError('email')">{{ errors['email'] }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-next" (click)="next()">Continue <span class="arrow">&#8594;</span></button>
+          </div>
+        </div>
+
+        <!-- ━━ STEP 2: Identity ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <div *ngIf="currentStep === 1" class="step-panel">
+          <div class="panel-head">
+            <div class="panel-icon icon-purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                <rect x="2" y="5" width="20" height="14" rx="2"/>
+                <line x1="2" y1="10" x2="22" y2="10"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="panel-title">Identity Verification</h2>
+              <p class="panel-sub">Upload a clear photo of your government-issued ID</p>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-row">
+              <div class="field">
+                <label>ID type <span class="req">*</span></label>
+                <select [(ngModel)]="form.idType">
+                  <option>Aadhaar card</option>
+                  <option>PAN card</option>
+                  <option>Voter ID</option>
+                  <option>Passport</option>
+                  <option>Driving Licence</option>
+                </select>
+              </div>
+              <div class="field" [class.has-error]="hasError('idNumber')">
+                <label>ID number <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="form.idNumber" placeholder="Enter your ID number"/>
+                <span class="err-msg" *ngIf="hasError('idNumber')">{{ errors['idNumber'] }}</span>
+              </div>
+            </div>
+
+            <!-- Front upload -->
+            <div class="field" [class.has-error]="hasError('idFront')">
+              <label>Front side of ID <span class="req">*</span></label>
+              <div *ngIf="!form.idFrontPreview"
+                   class="upload-zone"
+                   (dragover)="onDragOver($event)"
+                   (drop)="onFileDrop($event, 'front')"
+                   (click)="frontInput.click()">
+                <input #frontInput type="file" accept="image/*,application/pdf" hidden (change)="onFileSelect($event,'front')"/>
+                <div class="upload-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </div>
+                <p class="upload-title">Drag & drop or <span class="upload-link">browse</span></p>
+                <p class="upload-hint">JPG, PNG or PDF · Max 5MB</p>
+              </div>
+              <div *ngIf="form.idFrontPreview" class="file-preview">
+                <img *ngIf="!isPdf(form.idFrontPreview)" [src]="form.idFrontPreview" class="preview-img" alt="ID front"/>
+                <div *ngIf="isPdf(form.idFrontPreview)" class="pdf-placeholder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5" width="32" height="32">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  <span>PDF uploaded</span>
+                </div>
+                <button class="remove-file" (click)="removeFile('front')">&#10005; Remove</button>
+              </div>
+              <span class="err-msg" *ngIf="hasError('idFront')">{{ errors['idFront'] }}</span>
+            </div>
+
+            <!-- Back upload -->
+            <div class="field">
+              <label>Back side of ID <span class="optional">(optional)</span></label>
+              <div *ngIf="!form.idBackPreview"
+                   class="upload-zone"
+                   (dragover)="onDragOver($event)"
+                   (drop)="onFileDrop($event, 'back')"
+                   (click)="backInput.click()">
+                <input #backInput type="file" accept="image/*,application/pdf" hidden (change)="onFileSelect($event,'back')"/>
+                <div class="upload-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </div>
+                <p class="upload-title">Drag & drop or <span class="upload-link">browse</span></p>
+                <p class="upload-hint">JPG, PNG or PDF · Max 5MB</p>
+              </div>
+              <div *ngIf="form.idBackPreview" class="file-preview">
+                <img *ngIf="!isPdf(form.idBackPreview)" [src]="form.idBackPreview" class="preview-img" alt="ID back"/>
+                <button class="remove-file" (click)="removeFile('back')">&#10005; Remove</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-back" (click)="back()">&#8592; Back</button>
+            <button class="btn-next" (click)="next()">Continue <span class="arrow">&#8594;</span></button>
+          </div>
+        </div>
+
+        <!-- ━━ STEP 3: Address ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <div *ngIf="currentStep === 2" class="step-panel">
+          <div class="panel-head">
+            <div class="panel-icon icon-orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="panel-title">Address Details</h2>
+              <p class="panel-sub">Your current residential address</p>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-row">
+              <div class="field" [class.has-error]="hasError('houseNo')">
+                <label>House / Flat no. <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="form.houseNo" placeholder="e.g. 4B, Sri Nilayam Apts"/>
+                <span class="err-msg" *ngIf="hasError('houseNo')">{{ errors['houseNo'] }}</span>
+              </div>
+              <div class="field" [class.has-error]="hasError('street')">
+                <label>Street / Area <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="form.street" placeholder="e.g. Madhapur Road"/>
+                <span class="err-msg" *ngIf="hasError('street')">{{ errors['street'] }}</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field" [class.has-error]="hasError('city')">
+                <label>City <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="form.city" placeholder="e.g. Hyderabad"/>
+                <span class="err-msg" *ngIf="hasError('city')">{{ errors['city'] }}</span>
+              </div>
+              <div class="field">
+                <label>State <span class="req">*</span></label>
+                <select [(ngModel)]="form.state">
+                  <option *ngFor="let s of stateOptions" [value]="s">{{ s }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="field half" [class.has-error]="hasError('pinCode')">
+              <label>PIN code <span class="req">*</span></label>
+              <input type="text" [(ngModel)]="form.pinCode" placeholder="6-digit PIN" maxlength="6"/>
+              <span class="err-msg" *ngIf="hasError('pinCode')">{{ errors['pinCode'] }}</span>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-back" (click)="back()">&#8592; Back</button>
+            <button class="btn-next" (click)="next()">Continue <span class="arrow">&#8594;</span></button>
+          </div>
+        </div>
+
+        <!-- ━━ STEP 4: Vehicle ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <div *ngIf="currentStep === 3" class="step-panel">
+          <div class="panel-head">
+            <div class="panel-icon icon-teal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                <circle cx="5.5" cy="17.5" r="2.5"/><circle cx="18.5" cy="17.5" r="2.5"/>
+                <path d="M1 9l2-2h13l3 5h2v5h-2"/>
+                <path d="M3 9v6h10V9"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="panel-title">Vehicle Information</h2>
+              <p class="panel-sub">Details about your delivery vehicle</p>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field" [class.has-error]="hasError('vehicleType')">
+              <label>Vehicle type <span class="req">*</span></label>
+              <div class="vehicle-grid">
+                <button *ngFor="let v of vehicleOptions"
+                        class="vehicle-card"
+                        [class.sel]="form.vehicleType === v.value"
+                        (click)="form.vehicleType = v.value">
+                  <span class="v-emoji">{{ v.emoji }}</span>
+                  <span class="v-label">{{ v.label }}</span>
+                </button>
+              </div>
+              <span class="err-msg" *ngIf="hasError('vehicleType')">{{ errors['vehicleType'] }}</span>
+            </div>
+
+            <div class="field-row">
+              <div class="field" [class.has-error]="hasError('vehicleModel')">
+                <label>Vehicle model <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="form.vehicleModel" placeholder="e.g. TVS XL Heavy Duty"/>
+                <span class="err-msg" *ngIf="hasError('vehicleModel')">{{ errors['vehicleModel'] }}</span>
+              </div>
+              <div class="field" [class.has-error]="hasError('vehicleRegNo')">
+                <label>Registration number <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="form.vehicleRegNo" placeholder="e.g. TS09AB1234" style="text-transform:uppercase"/>
+                <span class="err-msg" *ngIf="hasError('vehicleRegNo')">{{ errors['vehicleRegNo'] }}</span>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field" [class.has-error]="hasError('licenceNumber')">
+                <label>Driving licence no. <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="form.licenceNumber" placeholder="e.g. TS0920190012345"/>
+                <span class="err-msg" *ngIf="hasError('licenceNumber')">{{ errors['licenceNumber'] }}</span>
+              </div>
+              <div class="field" [class.has-error]="hasError('licenceExpiry')">
+                <label>Licence expiry <span class="req">*</span></label>
+                <input type="date" [(ngModel)]="form.licenceExpiry"/>
+                <span class="err-msg" *ngIf="hasError('licenceExpiry')">{{ errors['licenceExpiry'] }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-back" (click)="back()">&#8592; Back</button>
+            <button class="btn-next" (click)="next()">Continue <span class="arrow">&#8594;</span></button>
+          </div>
+        </div>
+
+        <!-- ━━ STEP 5: Bank ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <div *ngIf="currentStep === 4" class="step-panel">
+          <div class="panel-head">
+            <div class="panel-icon icon-green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                <rect x="2" y="5" width="20" height="14" rx="2"/>
+                <line x1="2" y1="10" x2="22" y2="10"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="panel-title">Bank Account Details</h2>
+              <p class="panel-sub">For receiving your delivery earnings</p>
+            </div>
+          </div>
+
+          <div class="info-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Your bank details are encrypted and stored securely. CarryGo never shares your financial information.
+          </div>
+
+          <div class="field-group">
+            <div class="field" [class.has-error]="hasError('accountHolder')">
+              <label>Account holder name <span class="req">*</span></label>
+              <input type="text" [(ngModel)]="form.accountHolder" placeholder="Exactly as in bank records"/>
+              <span class="err-msg" *ngIf="hasError('accountHolder')">{{ errors['accountHolder'] }}</span>
+            </div>
+            <div class="field-row">
+              <div class="field" [class.has-error]="hasError('accountNumber')">
+                <label>Account number <span class="req">*</span></label>
+                <div class="password-wrap">
+                  <input [type]="showAccountNumber ? 'text' : 'password'" [(ngModel)]="form.accountNumber" placeholder="Enter account number"/>
+                  <button class="eye-btn" (click)="showAccountNumber = !showAccountNumber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                      <path *ngIf="showAccountNumber" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle *ngIf="showAccountNumber" cx="12" cy="12" r="3"/>
+                      <path *ngIf="!showAccountNumber" d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line *ngIf="!showAccountNumber" x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  </button>
+                </div>
+                <span class="err-msg" *ngIf="hasError('accountNumber')">{{ errors['accountNumber'] }}</span>
+              </div>
+              <div class="field" [class.has-error]="hasError('confirmAccount')">
+                <label>Confirm account number <span class="req">*</span></label>
+                <div class="password-wrap">
+                  <input [type]="showConfirmAccount ? 'text' : 'password'" [(ngModel)]="form.confirmAccount" placeholder="Re-enter account number"/>
+                  <button class="eye-btn" (click)="showConfirmAccount = !showConfirmAccount">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                      <path *ngIf="showConfirmAccount" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle *ngIf="showConfirmAccount" cx="12" cy="12" r="3"/>
+                      <path *ngIf="!showConfirmAccount" d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line *ngIf="!showConfirmAccount" x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  </button>
+                </div>
+                <span class="err-msg" *ngIf="hasError('confirmAccount')">{{ errors['confirmAccount'] }}</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field" [class.has-error]="hasError('ifscCode')">
+                <label>IFSC code <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="form.ifscCode" placeholder="e.g. SBIN0001234" style="text-transform:uppercase"/>
+                <span class="field-hint" *ngIf="!hasError('ifscCode')">11-character bank branch code</span>
+                <span class="err-msg" *ngIf="hasError('ifscCode')">{{ errors['ifscCode'] }}</span>
+              </div>
+              <div class="field" [class.has-error]="hasError('bankName')">
+                <label>Bank name <span class="req">*</span></label>
+                <input type="text" [(ngModel)]="form.bankName" placeholder="e.g. State Bank of India"/>
+                <span class="err-msg" *ngIf="hasError('bankName')">{{ errors['bankName'] }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-back" (click)="back()">&#8592; Back</button>
+            <button class="btn-next" (click)="next()">Continue <span class="arrow">&#8594;</span></button>
+          </div>
+        </div>
+
+        <!-- ━━ STEP 6: Legal ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <div *ngIf="currentStep === 5" class="step-panel">
+          <div class="panel-head">
+            <div class="panel-icon icon-red">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="panel-title">Legal &amp; Consent</h2>
+              <p class="panel-sub">Please read and accept the terms before submitting</p>
+            </div>
+          </div>
+
+          <div class="terms-scroll" (scroll)="onTermsScroll($event)">
+            <p class="terms-heading">Terms &amp; Conditions</p>
+            <p>By registering as a CarryGo commuter porter, you agree to:</p>
+            <ul class="terms-list">
+              <li>Deliver parcels safely, securely, and on time without tampering</li>
+              <li>Maintain a minimum customer rating of 4.0 / 5.0</li>
+              <li>Comply with all applicable traffic laws and road safety regulations</li>
+              <li>Accept CarryGo's commission structure of 15% per completed delivery</li>
+              <li>Notify the platform immediately if a parcel is lost, damaged, or delayed</li>
+            </ul>
+            <p class="terms-heading" style="margin-top:14px">Privacy Policy</p>
+            <p>CarryGo collects your GPS location data during active deliveries solely to enable live parcel tracking for senders. Your personal data is encrypted at rest and in transit and is <strong>never</strong> sold to third parties. You may request data deletion at any time by contacting support&#64;carrygo.in.</p>
+            <p class="terms-heading" style="margin-top:14px">Commission &amp; Payout Policy</p>
+            <p>Earnings are credited to your registered bank account every Monday for the previous week's completed deliveries. A minimum payout threshold of ₹200 applies. CarryGo reserves the right to withhold payment pending resolution of any active dispute.</p>
+          </div>
+          <div class="scroll-hint" *ngIf="!termsScrolled">Scroll down to read the full terms &#8595;</div>
+          <div class="scroll-done" *ngIf="termsScrolled">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#1a9a6c" stroke-width="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+            You've read all the terms
+          </div>
+
+          <div class="field-group" style="margin-top:16px">
+            <label class="checkbox-label" [class.has-error]="hasError('terms')">
+              <input type="checkbox" [(ngModel)]="form.agreedTerms"/>
+              <span class="checkbox-box"></span>
+              <span>I have read and agree to the <strong>Terms &amp; Conditions</strong> and <strong>Privacy Policy</strong></span>
+            </label>
+            <span class="err-msg" style="margin-left:28px" *ngIf="hasError('terms')">{{ errors['terms'] }}</span>
+
+            <label class="checkbox-label" style="margin-top:10px" [class.has-error]="hasError('accuracy')">
+              <input type="checkbox" [(ngModel)]="form.agreedAccuracy"/>
+              <span class="checkbox-box"></span>
+              <span>I confirm all information provided is <strong>accurate and up to date</strong></span>
+            </label>
+            <span class="err-msg" style="margin-left:28px" *ngIf="hasError('accuracy')">{{ errors['accuracy'] }}</span>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-back" (click)="back()">&#8592; Back</button>
+            <button class="btn-next btn-submit" (click)="submitKyc()" [disabled]="isSubmitting">
+              <span *ngIf="!isSubmitting">Submit for review &#8594;</span>
+              <span *ngIf="isSubmitting" class="spinner"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ━━ STEP 7: Review / Success ━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <div *ngIf="currentStep === 6" class="step-panel">
+          <div class="success-hero">
+            <div class="success-ring">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#1a9a6c" stroke-width="2.5" width="36" height="36">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <h2 class="success-title">KYC Verified Successfully!</h2>
+            <p class="success-sub">Your details have been saved. You're all set to start accepting deliveries!</p>
+          </div>
+
+          <div class="review-list">
+            <div class="review-row">
+              <div class="review-icon bg-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                </svg>
+              </div>
+              <div class="review-info">
+                <div class="review-name">Personal Information</div>
+                <div class="review-desc">{{ form.fullName }} · {{ form.phone }}</div>
+              </div>
+              <span class="rev-tag tag-done">Submitted</span>
+            </div>
+            <div class="review-row">
+              <div class="review-icon bg-purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                </svg>
+              </div>
+              <div class="review-info">
+                <div class="review-name">Identity Documents</div>
+                <div class="review-desc">{{ form.idType }} · {{ form.idNumber }}</div>
+              </div>
+              <span class="rev-tag tag-review">Under review</span>
+            </div>
+            <div class="review-row">
+              <div class="review-icon bg-orange">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                </svg>
+              </div>
+              <div class="review-info">
+                <div class="review-name">Address</div>
+                <div class="review-desc">{{ form.city }}, {{ form.state }} – {{ form.pinCode }}</div>
+              </div>
+              <span class="rev-tag tag-done">Submitted</span>
+            </div>
+            <div class="review-row">
+              <div class="review-icon bg-teal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <circle cx="5.5" cy="17.5" r="2.5"/><circle cx="18.5" cy="17.5" r="2.5"/>
+                  <path d="M1 9l2-2h13l3 5h2v5h-2"/><path d="M3 9v6h10V9"/>
+                </svg>
+              </div>
+              <div class="review-info">
+                <div class="review-name">Vehicle &amp; Licence</div>
+                <div class="review-desc">{{ form.vehicleModel }} · {{ form.vehicleRegNo }}</div>
+              </div>
+              <span class="rev-tag tag-review">Under review</span>
+            </div>
+            <div class="review-row">
+              <div class="review-icon bg-green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                </svg>
+              </div>
+              <div class="review-info">
+                <div class="review-name">Bank Account</div>
+                <div class="review-desc">{{ form.bankName }} · {{ form.ifscCode }}</div>
+              </div>
+              <span class="rev-tag tag-done">Submitted</span>
+            </div>
+          </div>
+
+          <div class="btn-row" style="margin-top:24px">
+            <button class="btn-back" (click)="back()">&#8592; Edit details</button>
+            <button class="btn-next" routerLink="/porter-dashboard">Go to Dashboard &#8594;</button>
+          </div>
+        </div>
+
+      </div><!-- /form-card -->
+    </div><!-- /kyc-body -->
+  </div>
+</div>

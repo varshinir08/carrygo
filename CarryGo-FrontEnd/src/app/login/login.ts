@@ -47,10 +47,10 @@ export class Login {
           // Route based on role from response
           if (response.role === 'porter' || response.role === 'commuter') {
             console.log('Routing to porter-dashboard');
-            this.router.navigate(['/porter-dashboard']);
+            this.router.navigate(['/porter-dashboard', response.userId]);
           } else {
             console.log('Routing to user-dashboard');
-            this.router.navigate(['/user-dashboard']);
+            this.router.navigate(['/user-dashboard', response.userId]);
           }
         } else {
           this.errorMessage = 'Login successful but user data not found';

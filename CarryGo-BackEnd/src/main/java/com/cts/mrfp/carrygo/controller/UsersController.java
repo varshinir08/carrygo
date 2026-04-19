@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cts.mrfp.carrygo.model.Users;
 import com.cts.mrfp.carrygo.dto.UsersDTO;
+import com.cts.mrfp.carrygo.dto.CommuterRegistrationRequest;
 import com.cts.mrfp.carrygo.service.UsersService;
 import com.cts.mrfp.carrygo.util.DTOConverter;
 
@@ -69,6 +70,23 @@ public class UsersController {
             return ResponseEntity.badRequest().body("is_online field is required");
         }
         return usersService.updateUserStatus(userId, isOnline)
+                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(DTOConverter.convertUsersToDTO(user)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // Update user KYC / profile fields
+    @PutMapping("/{userId}")
+    public ResponseEntity<?> updateUserProfile(@PathVariable Integer userId, @RequestBody UsersDTO profileDTO) {
+        return usersService.updateUserProfile(userId, profileDTO)
+                .<ResponseEntity<?>>map(user -> ResponseEntity.ok(DTOConverter.convertUsersToDTO(user)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // Register an existing user as a commuter (adds porter role + saves vehicle/licence info)
+    @PostMapping("/{userId}/register-commuter")
+    public ResponseEntity<?> registerAsCommuter(@PathVariable Integer userId,
+                                                @RequestBody CommuterRegistrationRequest req) {
+        return usersService.registerAsCommuter(userId, req)
                 .<ResponseEntity<?>>map(user -> ResponseEntity.ok(DTOConverter.convertUsersToDTO(user)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

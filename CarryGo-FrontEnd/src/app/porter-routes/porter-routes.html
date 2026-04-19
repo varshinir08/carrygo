@@ -1,0 +1,256 @@
+<div class="dashboard-wrapper">
+
+  <!-- ── Sidebar ─────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/images/carrygo-logo.png" alt="CarryGo" class="sidebar-logo-img">
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-dashboard', porterProfile.userId] : ['/porter-dashboard']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-deliveries', porterProfile.userId] : ['/porter-deliveries']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 8h14M5 8a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v.5"/>
+          <path d="M5 8l-.867 9.143A2 2 0 006.126 19h11.748a2 2 0 001.993-1.857L19 8"/>
+        </svg>
+        <span>Deliveries</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-kyc', porterProfile.userId] : ['/porter-kyc']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>KYC Verification</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-routes', porterProfile.userId] : ['/porter-routes']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
+        </svg>
+        <span>My Routes</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-profile', porterProfile.userId] : ['/porter-profile']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        <span>Profile</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────── -->
+  <div class="main-content">
+
+    <!-- Header -->
+    <header class="top-header">
+      <h2 class="header-title">My Routes</h2>
+      <div class="header-actions">
+        <div class="status-switch-wrap" [class.is-online]="isOnline" [class.toggling]="isToggling"
+             (click)="toggleStatus()" role="switch" [attr.aria-checked]="isOnline"
+             tabindex="0" (keydown.space)="toggleStatus()">
+          <div class="switch-track">
+            <span class="switch-label-off">Offline</span>
+            <span class="switch-label-on">Online</span>
+            <div class="switch-thumb"><span class="thumb-pulse"></span></div>
+          </div>
+        </div>
+        <div class="status-toast-badge" [class.show]="statusToast" [class.online]="isOnline">
+          <span class="toast-dot"></span>{{ statusToast }}
+        </div>
+        <div class="earnings-chip">
+          <span>&#8377;</span>
+          <span>{{ earningsToday | number:'1.0-0' }}</span>
+          <span class="earn-lbl">today</span>
+        </div>
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+        <div class="profile-section">
+          <button class="avatar-btn" (click)="toggleProfileDropdown()">{{ userInitials }}</button>
+          <div class="profile-dropdown" [class.open]="showProfileDropdown">
+            <div class="dd-header">
+              <div class="dd-avatar">{{ userInitials }}</div>
+              <div>
+                <div class="dd-name">{{ porterProfile?.name }}</div>
+                <div class="dd-email">{{ porterProfile?.email }}</div>
+              </div>
+            </div>
+            <hr class="dd-hr"/>
+            <button class="dd-logout" (click)="logout()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="routes-main">
+
+      <!-- Page intro -->
+      <div class="routes-intro">
+        <div class="intro-text">
+          <h1 class="intro-title">Manage your routes</h1>
+          <p class="intro-sub">Set up your routes with departure times. Deliveries within ~5 km of your route start &amp; end will be shown to you.</p>
+        </div>
+        <button class="add-route-btn" (click)="openRouteModal()" [disabled]="!canAddRoute">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add Route
+        </button>
+      </div>
+
+      <!-- Routes list -->
+      <div class="routes-grid">
+
+        <!-- Empty state -->
+        <div *ngIf="myRoutes.length === 0" class="routes-empty">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" width="48" height="48">
+              <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
+            </svg>
+          </div>
+          <p class="empty-title">No routes yet</p>
+          <p class="empty-sub">Add a route to start receiving matched delivery requests.</p>
+          <button class="add-route-btn-empty" (click)="openRouteModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add your first route
+          </button>
+        </div>
+
+        <!-- Route cards -->
+        <div class="route-card" *ngFor="let r of myRoutes; let i = index">
+          <div class="route-card-header">
+            <div class="route-number">Route {{ i + 1 }}</div>
+            <button class="route-delete-btn" (click)="deleteRoute(r.routeId)" title="Delete route">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="route-points">
+            <div class="route-point">
+              <span class="rp-dot green-dot"></span>
+              <span class="rp-addr">{{ r.fromLocation }}</span>
+            </div>
+            <div class="route-line"></div>
+            <div class="route-point">
+              <span class="rp-dot red-dot"></span>
+              <span class="rp-addr">{{ r.toLocation }}</span>
+            </div>
+          </div>
+
+          <div class="route-card-footer">
+            <div class="route-time-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Departs {{ r.departureTime }}
+            </div>
+            <div class="route-range-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              ~5 km match radius
+            </div>
+          </div>
+        </div>
+
+        <!-- Add-another card -->
+        <div class="route-card route-add-card" *ngIf="myRoutes.length > 0" (click)="openRouteModal()">
+          <div class="add-card-inner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" width="28" height="28">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="16"/>
+              <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <span>Add another route</span>
+          </div>
+        </div>
+
+      </div><!-- /routes-grid -->
+
+
+    </main>
+  </div><!-- /main-content -->
+</div><!-- /dashboard-wrapper -->
+
+<!-- ═══════════════════════ ADD ROUTE MODAL ═══════════════════════ -->
+<div class="modal-overlay" *ngIf="showRouteModal" (click)="closeRouteModal()">
+  <div class="route-modal-box" (click)="$event.stopPropagation()">
+    <div class="route-modal-header">
+      <h3>Add Route</h3>
+      <button class="modal-close-btn" (click)="closeRouteModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <p class="route-modal-sub">
+      Click on the map to set your <strong>start point</strong>, then your <strong>end point</strong>.
+    </p>
+
+    <div class="route-map-status">
+      <span class="rms-step" [class.rms-active]="routePickStep === 'from'" [class.rms-done]="newRoute.fromLocation">
+        <span class="rms-num">1</span> Pick start
+        <span class="rms-check" *ngIf="newRoute.fromLocation">✓</span>
+      </span>
+      <span class="rms-arrow">→</span>
+      <span class="rms-step" [class.rms-active]="routePickStep === 'to'" [class.rms-done]="newRoute.toLocation">
+        <span class="rms-num">2</span> Pick end
+        <span class="rms-check" *ngIf="newRoute.toLocation">✓</span>
+      </span>
+    </div>
+
+    <!-- Map container — ViewChild targets this -->
+    <div class="route-map-wrap" #routeMapEl></div>
+
+    <!-- Selected locations -->
+    <div class="route-picked-row" *ngIf="newRoute.fromLocation || newRoute.toLocation">
+      <div class="rpr-item" *ngIf="newRoute.fromLocation">
+        <span class="rp-dot green-dot"></span>
+        <span class="rpr-addr">{{ newRoute.fromLocation }}</span>
+      </div>
+      <div class="rpr-item" *ngIf="newRoute.toLocation">
+        <span class="rp-dot red-dot"></span>
+        <span class="rpr-addr">{{ newRoute.toLocation }}</span>
+      </div>
+    </div>
+
+    <!-- Departure time -->
+    <div class="route-time-row">
+      <label class="time-label">Departure time</label>
+      <input type="time" [(ngModel)]="newRoute.departureTime" class="route-time-input"/>
+    </div>
+
+    <div class="route-modal-footer">
+      <button class="btn-cancel" (click)="closeRouteModal()">Cancel</button>
+      <button class="btn-save-route"
+              [disabled]="!newRoute.fromLocation || !newRoute.toLocation || !newRoute.departureTime || isSavingRoute"
+              (click)="saveRoute()">
+        <span *ngIf="!isSavingRoute">Save Route</span>
+        <span *ngIf="isSavingRoute" class="btn-spinner"></span>
+      </button>
+    </div>
+  </div>
+</div>

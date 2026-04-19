@@ -17,4 +17,12 @@ export class Wallet {
   getBalance(userId: number): Observable<any> {
     return this.getWalletByUserId(userId);
   }
+
+  topUp(userId: number, amount: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/user/${userId}/topup`, { amount });
+  }
+
+  deduct(userId: number, amount: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/user/${userId}/deduct`, { amount });
+  }
 }

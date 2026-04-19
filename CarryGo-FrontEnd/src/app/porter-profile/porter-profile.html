@@ -1,0 +1,390 @@
+<div class="dashboard-wrapper">
+
+  <!-- ── Sidebar ─────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/images/carrygo-logo.png" alt="CarryGo" class="sidebar-logo-img">
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item" [routerLink]="profile ? ['/porter-dashboard', profile.userId] : ['/porter-dashboard']"  routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg><span>Dashboard</span>
+      </a>
+      <a class="nav-item" [routerLink]="profile ? ['/porter-deliveries', profile.userId] : ['/porter-deliveries']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 8h14M5 8a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v.5"/>
+          <path d="M5 8l-.867 9.143A2 2 0 006.126 19h11.748a2 2 0 001.993-1.857L19 8"/>
+        </svg><span>Deliveries</span>
+      </a>
+      <a class="nav-item" [routerLink]="profile ? ['/porter-kyc', profile.userId] : ['/porter-kyc']"        routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg><span>KYC Verification</span>
+      </a>
+      <a class="nav-item" [routerLink]="profile ? ['/porter-routes', profile.userId] : ['/porter-routes']"    routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
+        </svg><span>My Routes</span>
+      </a>
+      <a class="nav-item" [routerLink]="profile ? ['/porter-profile', profile.userId] : ['/porter-profile']"    routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg><span>Profile</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────── -->
+  <div class="main-content">
+
+    <!-- Header -->
+    <header class="top-header">
+      <h2 class="header-title">Profile</h2>
+      <div class="header-actions">
+        <div class="status-switch-wrap" [class.is-online]="isOnline" [class.toggling]="isToggling" (click)="toggleStatus()" role="switch" [attr.aria-checked]="isOnline" tabindex="0" (keydown.space)="toggleStatus()">
+          <div class="switch-track">
+            <span class="switch-label-off">Offline</span>
+            <span class="switch-label-on">Online</span>
+            <div class="switch-thumb">
+              <span class="thumb-pulse"></span>
+            </div>
+          </div>
+        </div>
+        <div class="status-toast-badge" [class.show]="statusToast" [class.online]="isOnline">
+          <span class="toast-dot"></span>{{ statusToast }}
+        </div>
+        <div class="earnings-chip">
+          <span>&#8377;</span>
+          <span>{{ earningsToday | number:'1.0-0' }}</span>
+          <span class="earn-lbl">today</span>
+        </div>
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </button>
+        <div class="profile-section">
+          <button class="avatar-btn" (click)="toggleProfileDropdown()">{{ userInitials }}</button>
+          <div class="profile-dropdown" [class.open]="showProfileDropdown">
+            <div class="dd-header">
+              <div class="dd-avatar">{{ userInitials }}</div>
+              <div>
+                <div class="dd-name">{{ profile?.name }}</div>
+                <div class="dd-email">{{ profile?.email }}</div>
+              </div>
+            </div>
+            <hr class="dd-hr"/>
+            <button class="dd-logout" (click)="logout()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Toast -->
+    <div class="toast" [class.show]="saveSuccess">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1a9a6c" stroke-width="2.5" width="16" height="16">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      {{ saveSuccess }}
+    </div>
+
+    <main class="profile-main">
+
+      <!-- ── Hero card ──────────────────────────────── -->
+      <div class="hero-card">
+        <div class="hero-left">
+          <div class="hero-avatar">
+            {{ userInitials }}
+            <span class="online-ring" [class.on]="isOnline"></span>
+          </div>
+          <div class="hero-info">
+            <h1 class="hero-name">{{ profile?.name || '—' }}</h1>
+            <p class="hero-role">Commuter porter &nbsp;·&nbsp; Member since {{ getMemberSince() }}</p>
+            <div class="hero-badges">
+              <span class="badge badge-kyc" *ngIf="isKycVerified">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                KYC verified
+              </span>
+              <span class="badge badge-vehicle" *ngIf="profile?.vehicleModel">
+                &#x1F6F5; {{ profile!.vehicleModel }}
+              </span>
+              <span class="badge badge-rating" *ngIf="avgRating > 0">
+                &#9733; {{ avgRating }} rating
+              </span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-edit-profile" (click)="openEditPersonal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit profile
+        </button>
+      </div>
+
+      <!-- ── Stats row ───────────────────────────────── -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value">{{ totalDeliveries }}</div>
+          <div class="stat-label">Total deliveries</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ avgRating || '—' }}</div>
+          <div class="stat-label">Avg. rating</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">&#8377;{{ thisMonthEarnings | number:'1.0-0' }}</div>
+          <div class="stat-label">This month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ completionRate }}%</div>
+          <div class="stat-label">Completion rate</div>
+        </div>
+      </div>
+
+      <!-- ── Two-column grid ─────────────────────────── -->
+      <div class="details-grid">
+
+        <!-- LEFT column -->
+        <div class="left-col">
+
+          <!-- Personal details -->
+          <div class="detail-card">
+            <div class="card-head">
+              <span class="card-title">Personal details</span>
+              <button class="btn-link" (click)="openEditPersonal()">Edit</button>
+            </div>
+            <div class="detail-rows">
+              <div class="detail-row">
+                <span class="detail-key">Full name</span>
+                <span class="detail-val">{{ profile?.name || '—' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Phone</span>
+                <span class="detail-val">+91 {{ profile?.phone || '—' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Email</span>
+                <span class="detail-val">{{ profile?.email || '—' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Role</span>
+                <span class="detail-val" style="text-transform:capitalize">{{ profile?.role || '—' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vehicle details -->
+          <div class="detail-card">
+            <div class="card-head">
+              <span class="card-title">Vehicle details</span>
+              <button class="btn-link" (click)="openEditVehicle()">Edit</button>
+            </div>
+            <div class="detail-rows">
+              <div class="detail-row">
+                <span class="detail-key">Vehicle</span>
+                <span class="detail-val">{{ profile?.vehicleModel || '—' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Type</span>
+                <span class="detail-val" style="text-transform:capitalize">{{ profile?.vehicleType || '—' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Reg. number</span>
+                <span class="detail-val" style="text-transform:uppercase">{{ profile?.vehicleNumber || '—' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Licence no.</span>
+                <span class="detail-val">{{ profile?.licenceNumber || '—' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">Licence expiry</span>
+                <span class="detail-val">{{ profile?.licenceExpiry || '—' }}</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /left-col -->
+
+        <!-- RIGHT column -->
+        <div class="right-col">
+
+          <!-- Ratings & reviews -->
+          <div class="detail-card">
+            <div class="card-head">
+              <span class="card-title">Ratings &amp; reviews</span>
+            </div>
+
+            <div *ngIf="totalReviews === 0" class="no-reviews">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" width="36" height="36">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <p>No reviews yet</p>
+            </div>
+
+            <div *ngIf="totalReviews > 0">
+              <div class="rating-big">{{ avgRating }}</div>
+              <div class="stars-row">
+                <span class="star filled" *ngFor="let s of starArray(avgRating)">&#9733;</span>
+                <span class="star empty"  *ngFor="let s of emptyStars(avgRating)">&#9733;</span>
+              </div>
+              <div class="rating-base">Based on {{ totalReviews }} review{{ totalReviews !== 1 ? 's' : '' }}</div>
+
+              <div class="star-bars">
+                <div class="star-bar-row" *ngFor="let star of [5,4,3,2,1]">
+                  <span class="bar-label">{{ star }}</span>
+                  <div class="bar-track">
+                    <div class="bar-fill" [style.width.%]="starBarPct(star)" [class.bar-high]="star >= 4"></div>
+                  </div>
+                  <span class="bar-count">{{ starCounts[star] }}</span>
+                </div>
+              </div>
+
+              <!-- Recent reviews -->
+              <div class="recent-reviews" *ngIf="ratings.length > 0">
+                <div class="review-item" *ngFor="let r of ratings.slice(0, 3)">
+                  <div class="review-stars">
+                    <span class="star filled" *ngFor="let s of starArray(r.rating)">&#9733;</span>
+                    <span class="star empty"  *ngFor="let s of emptyStars(r.rating)">&#9733;</span>
+                  </div>
+                  <p class="review-comment" *ngIf="r.comment">"{{ r.comment }}"</p>
+                  <span class="review-date">{{ r.createdAt | date:'d MMM y' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preferences -->
+          <div class="detail-card">
+            <div class="card-head">
+              <span class="card-title">Preferences</span>
+            </div>
+            <div class="pref-list">
+              <div class="pref-row">
+                <div class="pref-info">
+                  <span class="pref-label">Order notifications</span>
+                  <span class="pref-desc">Get notified when new orders are available</span>
+                </div>
+                <button class="toggle-btn" [class.on]="prefs.orderNotifications"
+                        (click)="savePref('orderNotifications', !prefs.orderNotifications)">
+                  <span class="toggle-thumb"></span>
+                </button>
+              </div>
+              <div class="pref-row">
+                <div class="pref-info">
+                  <span class="pref-label">Earnings alerts</span>
+                  <span class="pref-desc">Daily summary of your delivery earnings</span>
+                </div>
+                <button class="toggle-btn" [class.on]="prefs.earningsAlerts"
+                        (click)="savePref('earningsAlerts', !prefs.earningsAlerts)">
+                  <span class="toggle-thumb"></span>
+                </button>
+              </div>
+              <div class="pref-row">
+                <div class="pref-info">
+                  <span class="pref-label">Flexible scheduling</span>
+                  <span class="pref-desc">Accept deliveries outside your normal hours</span>
+                </div>
+                <button class="toggle-btn" [class.on]="prefs.flexibleSchedule"
+                        (click)="savePref('flexibleSchedule', !prefs.flexibleSchedule)">
+                  <span class="toggle-thumb"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /right-col -->
+      </div><!-- /details-grid -->
+    </main>
+  </div><!-- /main-content -->
+</div><!-- /dashboard-wrapper -->
+
+<!-- ══════════════════════════════════════════
+     EDIT PERSONAL MODAL
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" *ngIf="showEditPersonal" (click)="showEditPersonal=false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h3>Edit personal details</h3>
+      <button class="modal-close" (click)="showEditPersonal=false">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Full name</label>
+        <input type="text" [(ngModel)]="editPersonal.name" placeholder="Full name"/>
+      </div>
+      <div class="field">
+        <label>Phone number</label>
+        <div class="phone-wrap">
+          <span class="phone-pre">+91</span>
+          <input type="tel" [(ngModel)]="editPersonal.phone" placeholder="10-digit number" maxlength="10"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Email address <span class="field-note">(cannot be changed)</span></label>
+        <input type="email" [value]="editPersonal.email" disabled class="disabled-input"/>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" (click)="showEditPersonal=false">Cancel</button>
+      <button class="btn-save" (click)="savePersonal()" [disabled]="isSavingPersonal">
+        <span *ngIf="!isSavingPersonal">Save changes</span>
+        <span *ngIf="isSavingPersonal" class="spinner"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     EDIT VEHICLE MODAL
+══════════════════════════════════════════ -->
+<div class="modal-backdrop" *ngIf="showEditVehicle" (click)="showEditVehicle=false">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <h3>Edit vehicle details</h3>
+      <button class="modal-close" (click)="showEditVehicle=false">&#10005;</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Vehicle type</label>
+        <select [(ngModel)]="editVehicle.vehicleType">
+          <option *ngFor="let t of vehicleTypes" [value]="t">{{ t }}</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Vehicle model</label>
+        <input type="text" [(ngModel)]="editVehicle.vehicleModel" placeholder="e.g. TVS XL Heavy Duty"/>
+      </div>
+      <div class="field">
+        <label>Registration number</label>
+        <input type="text" [(ngModel)]="editVehicle.vehicleNumber" placeholder="e.g. TS09AB1234" style="text-transform:uppercase"/>
+      </div>
+      <div class="field">
+        <label>Driving licence number</label>
+        <input type="text" [(ngModel)]="editVehicle.licenceNumber" placeholder="e.g. TS0920190012345"/>
+      </div>
+      <div class="field">
+        <label>Licence expiry date</label>
+        <input type="date" [(ngModel)]="editVehicle.licenceExpiry"/>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" (click)="showEditVehicle=false">Cancel</button>
+      <button class="btn-save" (click)="saveVehicle()" [disabled]="isSavingVehicle">
+        <span *ngIf="!isSavingVehicle">Save changes</span>
+        <span *ngIf="isSavingVehicle" class="spinner"></span>
+      </button>
+    </div>
+  </div>
+</div>

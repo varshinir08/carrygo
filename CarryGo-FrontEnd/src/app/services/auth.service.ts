@@ -41,7 +41,7 @@ export class AuthService {
     return this.http.post(`${this.baseUrl}/login`, credentials).pipe(
       tap((user: any) => {
         if (user && user.userId) {
-          if (typeof localStorage !== 'undefined') {
+          if (isPlatformBrowser(this.platformId)) {
             localStorage.setItem('currentUser', JSON.stringify(user));
             localStorage.setItem('userEmail', user.email);
             localStorage.setItem('userId', user.userId.toString());
@@ -53,10 +53,12 @@ export class AuthService {
     );
   }
 
+  private isBrowser(): boolean {
+    return isPlatformBrowser(this.platformId);
+  }
+
   private getCurrentUserFromStorage() {
-    if (typeof localStorage === 'undefined') {
-      return null;
-    }
+    if (!this.isBrowser()) return null;
     const user = localStorage.getItem('currentUser');
     return user ? JSON.parse(user) : null;
   }
@@ -66,28 +68,28 @@ export class AuthService {
   }
 
   getLoggedInUserEmail(): string | null {
-    if (typeof localStorage === 'undefined') return null;
+    if (!this.isBrowser()) return null;
     return localStorage.getItem('userEmail');
   }
 
   getLoggedInUserId(): number | null {
-    if (typeof localStorage === 'undefined') return null;
+    if (!this.isBrowser()) return null;
     const id = localStorage.getItem('userId');
     return id ? parseInt(id, 10) : null;
   }
 
   getUserRole(): string | null {
-    if (typeof localStorage === 'undefined') return null;
+    if (!this.isBrowser()) return null;
     return localStorage.getItem('userRole');
   }
 
   isLoggedIn(): boolean {
-    if (typeof localStorage === 'undefined') return false;
+    if (!this.isBrowser()) return false;
     return !!localStorage.getItem('currentUser');
   }
 
   logout() {
-    if (typeof localStorage !== 'undefined') {
+    if (this.isBrowser()) {
       localStorage.removeItem('currentUser');
       localStorage.removeItem('userEmail');
       localStorage.removeItem('userId');

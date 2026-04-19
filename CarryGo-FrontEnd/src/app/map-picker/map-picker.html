@@ -1,0 +1,216 @@
+<div class="mp-overlay" [hidden]="!isOpen" (click)="cancel()"></div>
+
+<div class="mp-modal" [hidden]="!isOpen">
+
+  <!-- ══════════════ LEFT PANEL ══════════════ -->
+  <div class="mp-panel">
+
+    <!-- Header -->
+    <div class="mp-panel-header">
+      <div class="mp-header-title">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Select Locations
+      </div>
+      <button class="mp-close-btn" (click)="cancel()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Phase tabs -->
+    <div class="mp-phase-tabs">
+      <button class="mp-phase-tab"
+        [class.active]="phase === 'pickup'"
+        (click)="switchPhase('pickup')">
+        <span class="phase-dot green"></span>
+        Pickup
+      </button>
+      <div class="mp-phase-arrow">→</div>
+      <button class="mp-phase-tab"
+        [class.active]="phase === 'drop'"
+        [class.disabled]="!pickupLat"
+        (click)="pickupLat !== undefined && switchPhase('drop')">
+        <span class="phase-dot orange"></span>
+        Drop-off
+      </button>
+    </div>
+
+    <!-- Instruction -->
+    <div class="mp-instruction" *ngIf="phase === 'pickup' && !pickupLat">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      Search or click on the map to set your <strong>pickup</strong> point
+    </div>
+    <div class="mp-instruction" *ngIf="phase === 'drop' && !dropLat">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      Search or click on the map to set your <strong>drop-off</strong> point
+    </div>
+
+    <!-- Search bar -->
+    <div class="mp-search-wrap">
+      <div class="mp-search-box" [class.focused]="showSuggestions">
+        <svg class="mp-search-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input
+          class="mp-search-input"
+          [placeholder]="phase === 'pickup' ? 'Search pickup address…' : 'Search drop-off address…'"
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="onSearchInput($event)"
+          (blur)="closeSuggestions()"
+          autocomplete="off"
+        />
+        <div class="mp-spinner" *ngIf="isSearching"></div>
+      </div>
+
+      <!-- Suggestions dropdown -->
+      <div class="mp-suggestions" *ngIf="showSuggestions && suggestions.length > 0">
+        <div
+          class="mp-suggestion-item"
+          *ngFor="let s of suggestions"
+          (mousedown)="selectSuggestion(s)"
+        >
+          <svg class="sug-icon" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <div class="sug-text">
+            <div class="sug-main">{{ s.display_name | slice:0:50 }}{{ s.display_name.length > 50 ? '…' : '' }}</div>
+            <div class="sug-type">{{ s.type }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selected addresses summary -->
+    <div class="mp-addr-summary">
+      <!-- Pickup -->
+      <div class="mp-addr-row" [class.active-row]="phase === 'pickup'">
+        <span class="addr-dot green"></span>
+        <div class="addr-content" *ngIf="pickupLat !== undefined">
+          <div class="addr-label">Pickup</div>
+          <div class="addr-text">{{ shortAddress(pickupAddress) }}</div>
+          <div class="addr-coords">{{ pickupLat!.toFixed(4) }}, {{ pickupLng!.toFixed(4) }}</div>
+        </div>
+        <div class="addr-content placeholder" *ngIf="pickupLat === undefined">
+          <div class="addr-label">Pickup</div>
+          <div class="addr-text muted">Not set yet</div>
+        </div>
+        <button class="addr-reset-btn" *ngIf="pickupLat !== undefined" (click)="resetPickup()" title="Remove">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Route line -->
+      <div class="mp-route-line">
+        <div class="route-line-inner" [class.has-route]="distanceKm > 0"></div>
+      </div>
+
+      <!-- Drop -->
+      <div class="mp-addr-row" [class.active-row]="phase === 'drop'">
+        <span class="addr-dot orange"></span>
+        <div class="addr-content" *ngIf="dropLat !== undefined">
+          <div class="addr-label">Drop-off</div>
+          <div class="addr-text">{{ shortAddress(dropAddress) }}</div>
+          <div class="addr-coords">{{ dropLat!.toFixed(4) }}, {{ dropLng!.toFixed(4) }}</div>
+        </div>
+        <div class="addr-content placeholder" *ngIf="dropLat === undefined">
+          <div class="addr-label">Drop-off</div>
+          <div class="addr-text muted">Not set yet</div>
+        </div>
+        <button class="addr-reset-btn" *ngIf="dropLat !== undefined" (click)="resetDrop()" title="Remove">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Route info card -->
+    <div class="mp-route-card" *ngIf="distanceKm > 0">
+      <div class="route-info-grid">
+        <div class="route-info-item">
+          <svg width="16" height="16" fill="none" stroke="#f97316" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+          </svg>
+          <div>
+            <div class="ri-val">{{ distanceKm }} km</div>
+            <div class="ri-lbl">Road distance</div>
+          </div>
+        </div>
+        <div class="route-info-item">
+          <svg width="16" height="16" fill="none" stroke="#f97316" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div>
+            <div class="ri-val">{{ formatDuration(durationMin) }}</div>
+            <div class="ri-lbl">Est. time</div>
+          </div>
+        </div>
+        <div class="route-info-item">
+          <svg width="16" height="16" fill="none" stroke="#f97316" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+          </svg>
+          <div>
+            <div class="ri-val">₹{{ estimatedFare() }}</div>
+            <div class="ri-lbl">Est. fare</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Routing spinner -->
+    <div class="mp-routing-status" *ngIf="isRouting">
+      <div class="mp-mini-spinner"></div>
+      Calculating route…
+    </div>
+
+    <!-- Footer buttons -->
+    <div class="mp-footer">
+      <button class="mp-btn-cancel" (click)="cancel()">Cancel</button>
+      <button class="mp-btn-confirm" [disabled]="!canConfirm" (click)="confirm()">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+        </svg>
+        Confirm Locations
+      </button>
+    </div>
+
+    <!-- Attribution -->
+    <div class="mp-attribution">
+      Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors
+      &nbsp;·&nbsp; Routing by <a href="http://project-osrm.org" target="_blank">OSRM</a>
+    </div>
+  </div>
+
+  <!-- ══════════════ MAP ══════════════ -->
+  <div class="mp-map-wrap">
+    <div #mapEl class="mp-map"></div>
+
+    <!-- Map hint pill -->
+    <div class="mp-map-hint" [class.hidden]="(phase === 'pickup' && pickupLat !== undefined) || (phase === 'drop' && dropLat !== undefined)">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/>
+      </svg>
+      Click anywhere on the map to place {{ phase === 'pickup' ? 'pickup' : 'drop-off' }} pin
+    </div>
+  </div>
+</div>

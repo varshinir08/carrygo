@@ -1,0 +1,40 @@
+<div class="cr-page">
+  <div class="cr-card">
+    <!-- Header -->
+    <div class="cr-header">
+      <button class="back-btn" (click)="goBack()">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <div>
+        <h1 class="cr-title">Become a Commuter</h1>
+        <p class="cr-sub">Earn money delivering packages on your route</p>
+      </div>
+    </div>
+
+    <!-- Benefits strip -->
+    <div class="benefits-row">
+      <div class="benefit-chip">💸 ₹50 per delivery</div>
+      <div class="benefit-chip">🗺️ Choose your route</div>
+      <div class="benefit-chip">⏰ Flexible hours</div>
+    </div>
+
+    <!-- Info -->
+    <div class="cr-info-box">
+      <p>After registering, you'll be taken to your <strong>Porter Dashboard</strong> where you can:</p>
+      <ul>
+        <li>✅ Set your delivery routes</li>
+        <li>✅ Complete KYC verification with your vehicle & licence details</li>
+        <li>✅ Start accepting delivery requests</li>
+      </ul>
+    </div>
+
+    <div class="error-msg" *ngIf="errorMsg">{{ errorMsg }}</div>
+
+    <button class="submit-btn" (click)="submit()" [disabled]="isSubmitting">
+      <span *ngIf="!isSubmitting">Register as Commuter →</span>
+      <span *ngIf="isSubmitting">Registering…</span>
+    </button>
+  </div>
+</div>

@@ -1,162 +1,514 @@
-<div class="dashboard-wrapper" [attr.data-theme]="currentTheme">
-  <!-- Persistent Sidebar -->
+<div class="dashboard-wrapper">
+
+  <!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
   <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="logo-section"> 
-        <div class="logo-text">
-          <h3>CarryGo</h3>
-          <p>Porter Portal</p>
-        </div>
-      </div>
+    <div class="sidebar-brand">
+      <img src="assets/images/carrygo-logo.png" alt="CarryGo" class="sidebar-logo-img">
     </div>
-    
     <nav class="sidebar-nav">
-      <a *ngFor="let item of navItems" 
-         [routerLink]="item.route" 
-         class="nav-item"
-         [class.active]="item.active"
-         (click)="setActiveNav(item)">
-        <span class="nav-icon">{{ item.icon }}</span>
-        <span class="nav-label">{{ item.label }}</span>
+      <a class="nav-item" [class.active]="activeSection==='dashboard'" (click)="navigate('dashboard')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-deliveries', porterProfile.userId] : ['/porter-deliveries']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 8h14M5 8a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v.5"/>
+          <path d="M5 8l-.867 9.143A2 2 0 006.126 19h11.748a2 2 0 001.993-1.857L19 8"/>
+        </svg>
+        <span>Deliveries</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-kyc', porterProfile.userId] : ['/porter-kyc']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>KYC Verification</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-routes', porterProfile.userId] : ['/porter-routes']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
+        </svg>
+        <span>My Routes</span>
+      </a>
+      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-profile', porterProfile.userId] : ['/porter-profile']" routerLinkActive="active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        <span>Profile</span>
       </a>
     </nav>
   </aside>
-<div class="main-content">
+
+  <!-- ═══════════════════════ MAIN ═══════════════════════ -->
+  <div class="main-content">
+
+    <!-- Top Header -->
     <header class="top-header">
-      <div class="header-right">
-         <div class="availability-toggle always-enabled" [class.online]="isOnline" (click)="toggleStatus()" title="Toggle availability status">
-          <span class="toggle-indicator" [class.online]="isOnline"></span>
-          <span class="status-text">{{ isOnline ? 'Online' : 'Offline' }}</span>
-        </div>
-        
-        <div class="earnings-widget">
-          <span class="currency">$</span>
-          <span class="amount">{{ earningsToday | number:'1.2-2' }}</span>
-          <span class="label">Today</span>
-        </div>
-        
-         <button class="theme-toggle" (click)="toggleTheme()" [title]="'Switch to ' + (currentTheme === 'light' ? 'Dark' : 'Light') + ' mode'">
-          {{ currentTheme === 'light' ? '🌙' : '☀️' }}
-        </button>
-        
-         <button class="notification-bell" title="View notifications">
-          🔔
-          <span class="badge" *ngIf="notifications > 0">{{ notifications }}</span>
-        </button>
-        
-        <!-- User Profile Avatar & Dropdown -->
-        <div class="profile-section">
-          <div class="profile-avatar" (click)="toggleProfileDropdown()" [title]="porterProfile?.name || 'User Profile'">
-            <span class="avatar">{{ userInitials }}</span>
+      <h2 class="header-title">Dashboard</h2>
+      <div class="header-actions">
+
+        <!-- Online toggle -->
+        <div class="status-switch-wrap" [class.is-online]="isOnline" [class.toggling]="isToggling"
+             (click)="toggleStatus()" role="switch" [attr.aria-checked]="isOnline"
+             tabindex="0" (keydown.space)="toggleStatus()">
+          <div class="switch-track">
+            <span class="switch-label-off">Offline</span>
+            <span class="switch-label-on">Online</span>
+            <div class="switch-thumb"><span class="thumb-pulse"></span></div>
           </div>
-          
-          <!-- Profile Dropdown Menu -->
+        </div>
+        <div class="status-toast-badge" [class.show]="statusToast" [class.online]="isOnline">
+          <span class="toast-dot"></span>{{ statusToast }}
+        </div>
+
+        <!-- Earnings chip -->
+        <div class="earnings-chip">
+          <span class="rupee">&#8377;</span>
+          <span class="earnings-amount">{{ earningsToday | number:'1.0-0' }}</span>
+          <span class="earnings-label">today</span>
+        </div>
+
+        <!-- Notification bell -->
+        <button class="icon-btn notif-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="badge" *ngIf="notificationCount > 0">{{ notificationCount }}</span>
+        </button>
+
+        <!-- Avatar -->
+        <div class="profile-section">
+          <button class="avatar-btn" (click)="toggleProfileDropdown()">{{ userInitials }}</button>
           <div class="profile-dropdown" [class.open]="showProfileDropdown">
             <div class="dropdown-header">
-              <div class="dropdown-avatar">
-                <span>{{ userInitials }}</span>
-              </div>
-              <div class="dropdown-info">
-                <h4>{{ porterProfile?.name || 'Porter' }}</h4>
-                <p>{{ porterProfile?.email }}</p>
+              <div class="dropdown-avatar">{{ userInitials }}</div>
+              <div>
+                <div class="dropdown-name">{{ porterProfile?.name }}</div>
+                <div class="dropdown-email">{{ porterProfile?.email }}</div>
               </div>
             </div>
-            <hr class="dropdown-divider">
-            <button class="dropdown-item logout" (click)="logout()">
-              <span>🚪</span> Logout
+            <hr/>
+            <button class="dropdown-logout" (click)="logout()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Logout
             </button>
           </div>
         </div>
       </div>
     </header>
 
-    <div class="error-banner" *ngIf="errorMessage">
-      <span>⚠️ {{ errorMessage }}</span>
-    </div>
+    <!-- Error Banner -->
+    <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
 
-    <!-- Home Page - Shows both offline and online content -->
+    <!-- ═══ DASHBOARD MAIN ═══ -->
     <main class="dashboard-main">
-      <!-- Page Heading -->
-      <div class="page-header">
-        <div class="greeting">
-          <h1 class="page-title" *ngIf="porterProfile">Welcome back, {{ porterProfile!.name.split(' ')[0] }}! 👋</h1>
-          <h1 class="page-title" *ngIf="!porterProfile">Welcome to CarryGo! 👋</h1>
-          <p class="page-subtitle" *ngIf="porterProfile?.vehicleType && isOnline">Ready to deliver with your {{ porterProfile!.vehicleType }}</p>
-          <p class="page-subtitle" *ngIf="!porterProfile?.vehicleType && isOnline">Ready to deliver today</p>
-          <p class="page-subtitle" *ngIf="!isOnline">You are currently offline</p>
+
+      <!-- Greeting -->
+      <div class="greeting">
+        <h1 class="greeting-title">Welcome back, {{ getFirstName() }} <span class="wave">&#x1F44B;</span></h1>
+        <p class="greeting-sub">{{ porterProfile?.vehicleType ? 'Ready to deliver with your ' + porterProfile?.vehicleType : 'Ready to deliver today' }}</p>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Today's deliveries</div>
+          <div class="stat-value">{{ todayDeliveries }} <span class="stat-icon">&#x1F4E6;</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active orders</div>
+          <div class="stat-value">{{ activeOrdersCount }} <span class="stat-icon">&#x23F0;</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Completed</div>
+          <div class="stat-value">
+            {{ completedCount }}
+            <svg class="stat-check" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" width="22" height="22"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </div>
+        <!-- Wallet stat card -->
+        <div class="stat-card wallet-stat-card" (click)="navigate('wallet')">
+          <div class="stat-label">Wallet Balance</div>
+          <div class="stat-value">
+            {{ walletBalance | number:'1.0-0' }}
+            <svg class="stat-rupee" viewBox="0 0 24 24" fill="#7c3aed" width="22" height="22">
+              <text x="3" y="19" font-size="18" font-family="Arial">&#8377;</text>
+            </svg>
+          </div>
+          <div class="wallet-hint">Tap to manage</div>
         </div>
       </div>
 
-      <!-- Quick Actions -->
-      <section class="quick-actions" *ngIf="isOnline">
-        <div class="section-header">
-          <h2>Quick Actions</h2>
-          <p>Get started with common tasks</p>
-        </div>
-        <div class="actions-grid">
-          <a *ngFor="let action of quickActions" 
-             [routerLink]="action.route" 
-             class="action-card" 
-             [ngClass]="action.color"
-             [title]="action.desc">
-            <span class="action-icon">{{ action.icon }}</span>
-            <h3>{{ action.title }}</h3>
-            <p class="action-desc">{{ action.desc }}</p>
-          </a>
-        </div>
-      </section>
-
-      <!-- Services Section -->
-      <section class="services-section" *ngIf="isOnline">
-        <div class="section-header">
-          <h2>Our Services</h2>
-          <p>Explore the delivery services available to you</p>
-        </div>
-        <div class="services-grid">
-          <div *ngFor="let service of services" class="service-card" [style.border-top-color]="service.highlight">
-            <div class="service-icon-wrapper">
-              <span class="service-icon">{{ service.icon }}</span>
+      <!-- ══ Charts Row ══ -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <div class="chart-title">Deliveries This Week</div>
+              <div class="chart-sub">Daily completed deliveries</div>
             </div>
-            <h3>{{ service.title }}</h3>
-            <p>{{ service.desc }}</p>
-            <a href="#" class="service-link">Learn more →</a>
+            <div class="chart-badge blue-badge">{{ completedCount }} total</div>
+          </div>
+          <div class="chart-wrap">
+            <canvas #deliveriesChart></canvas>
           </div>
         </div>
-      </section>
 
-      <section class="stats-section" *ngIf="isOnline">
-        <div class="stat-card">
-          <div class="stat-icon">📦</div>
-          <div class="stat-content">
-            <span class="stat-label">Deliveries Completed</span>
-            <span class="stat-value">42</span>
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <div class="chart-title">Earnings This Week</div>
+              <div class="chart-sub">Daily earnings in ₹</div>
+            </div>
+            <div class="chart-badge purple-badge">₹{{ earningsToday | number:'1.0-0' }} today</div>
+          </div>
+          <div class="chart-wrap">
+            <canvas #earningsChart></canvas>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">⭐</div>
-          <div class="stat-content">
-            <span class="stat-label">Rating</span>
-            <span class="stat-value">4.8 / 5</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon">📊</div>
-          <div class="stat-content">
-            <span class="stat-label">This Month</span>
-            <span class="stat-value">$1,240</span>
-          </div>
-        </div>
-      </section>
+      </div>
 
-      <!-- About CarryGo Section -->
-      <section class="about-section">
-        <div class="about-card">
-          <div class="about-icon">🎯</div>
-          <h2>About CarryGo</h2>
-          <p>{{ about.mission }}</p>
-          <p class="about-subtext">Join thousands of reliable porters delivering across the region with competitive rates and flexible scheduling.</p>
+      <!-- ══ Orders Grid ══ -->
+      <div class="orders-grid">
+
+        <!-- Active Orders -->
+        <section class="orders-section">
+          <h3 class="section-title">Active orders</h3>
+          <div *ngIf="activeOrders.length === 0" class="empty-state"><span>No active orders right now</span></div>
+
+          <div class="order-card" *ngFor="let order of activeOrders">
+            <div class="order-card-header">
+              <span class="order-id">#ORD-{{ order.deliveryId }}</span>
+              <div class="order-header-right">
+                <span class="order-amount">&#8377;{{ order.totalAmount | number:'1.0-0' }}</span>
+                <!-- small nav icon — secondary action -->
+                <button class="nav-icon-btn" (click)="openNavMap(order)" title="Open map">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- 3-step progress stepper -->
+            <div class="order-stepper">
+              <div class="step done">
+                <div class="step-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <span>Accepted</span>
+              </div>
+              <div class="step-line" [class.done]="isPickedUp(order)"></div>
+              <div class="step" [class.done]="isPickedUp(order)" [class.active]="!isPickedUp(order)">
+                <div class="step-dot"></div>
+                <span>Picked Up</span>
+              </div>
+              <div class="step-line"></div>
+              <div class="step" [class.active]="isPickedUp(order)">
+                <div class="step-dot"></div>
+                <span>Delivered</span>
+              </div>
+            </div>
+
+            <!-- Addresses -->
+            <div class="address-row">
+              <span class="dot green-dot"></span>
+              <span class="address-text">{{ order.pickupAddress || '—' }}</span>
+            </div>
+            <div class="address-connector"></div>
+            <div class="address-row">
+              <span class="dot red-dot"></span>
+              <span class="address-text">{{ order.dropAddress || '—' }}</span>
+            </div>
+            <div class="sender-info" *ngIf="order.pickupContact || order.pickupPhone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+              <span class="sender-name" *ngIf="order.pickupContact">{{ order.pickupContact }}</span>
+              <span class="sender-sep" *ngIf="order.pickupContact && order.pickupPhone">·</span>
+              <span class="sender-phone" *ngIf="order.pickupPhone">{{ order.pickupPhone }}</span>
+            </div>
+
+            <div class="package-row">
+              <span class="pkg-icon">&#x1F4E6;</span>
+              <span class="pkg-type">{{ order.packageType || 'Package' }}</span>
+              <span class="dist-chip" *ngIf="order.distanceKm">{{ order.distanceKm | number:'1.1-1' }} km</span>
+            </div>
+
+            <!-- Single contextual action button -->
+            <button class="action-btn progress-btn"
+                    [class.pickup-done-btn]="!isPickedUp(order)"
+                    [class.deliver-btn]="isPickedUp(order)"
+                    (click)="nextAction(order)">
+              <svg *ngIf="!isPickedUp(order)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+              <svg *ngIf="isPickedUp(order)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              {{ getActionLabel(order) }}
+            </button>
+          </div>
+        </section>
+
+        <!-- Order Requests -->
+        <section class="orders-section">
+          <h3 class="section-title">Order requests</h3>
+
+          <div *ngIf="!isOnline" class="offline-placeholder">
+            <div class="offline-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" width="36" height="36">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728M5.636 5.636a9 9 0 000 12.728M9 10a3 3 0 116 0M3 3l18 18"/>
+              </svg>
+            </div>
+            <p class="offline-msg">You're offline</p>
+            <p class="offline-sub">Toggle online to start receiving order requests</p>
+          </div>
+
+          <ng-container *ngIf="isOnline">
+            <div *ngIf="orderRequests.length === 0" class="empty-state"><span>No new requests at the moment</span></div>
+
+            <div class="order-card request-card" *ngFor="let req of orderRequests">
+              <div class="order-card-header">
+                <span class="order-id">#ORD-{{ req.deliveryId }}</span>
+                <span class="order-amount">&#8377;{{ req.totalAmount | number:'1.0-0' }}</span>
+              </div>
+              <div class="request-meta">{{ req.distanceKm | number:'1.1-1' }} km &nbsp;·&nbsp; {{ req.packageType || 'Package' }}</div>
+              <div class="address-row"><span class="dot green-dot"></span><span class="address-text">{{ req.pickupAddress }}</span></div>
+              <div class="address-row"><span class="dot red-dot"></span><span class="address-text">{{ req.dropAddress }}</span></div>
+              <div class="sender-info" *ngIf="req.pickupContact || req.pickupPhone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span class="sender-name" *ngIf="req.pickupContact">{{ req.pickupContact }}</span>
+                <span class="sender-sep" *ngIf="req.pickupContact && req.pickupPhone">·</span>
+                <span class="sender-phone" *ngIf="req.pickupPhone">{{ req.pickupPhone }}</span>
+              </div>
+              <div class="request-actions">
+                <button class="accept-btn" (click)="acceptOrder(req)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+                  Accept
+                </button>
+                <button class="reject-btn" (click)="rejectOrder(req)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                  Reject
+                </button>
+              </div>
+            </div>
+          </ng-container>
+        </section>
+      </div>
+
+      <!-- ══ Wallet Section ══ -->
+      <div class="wallet-section" id="wallet-section">
+        <div class="wallet-header-row">
+          <div>
+            <div class="wallet-title">My Wallet</div>
+            <div class="wallet-sub">Your earnings &amp; withdrawal history</div>
+          </div>
+          <button class="withdraw-btn" (click)="openWithdraw()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Withdraw
+          </button>
         </div>
-      </section>
+
+        <div class="wallet-cards">
+          <div class="wallet-balance-card">
+            <div class="wc-label">Available Balance</div>
+            <div class="wc-amount">₹{{ walletBalance | number:'1.2-2' }}</div>
+            <div class="wc-updated" *ngIf="walletData?.lastUpdated">
+              Updated {{ walletData!.lastUpdated | date:'dd MMM, h:mm a' }}
+            </div>
+          </div>
+          <div class="wallet-today-card">
+            <div class="wc-label">Today's Earnings</div>
+            <div class="wc-amount purple">₹{{ earningsToday | number:'1.2-2' }}</div>
+            <div class="wc-note">{{ completedCount }} deliveries completed</div>
+          </div>
+          <div class="wallet-week-card">
+            <div class="wc-label">This Week</div>
+            <div class="wc-amount green">₹{{ weekTotalEarnings | number:'1.2-2' }}</div>
+            <div class="wc-note">{{ weekTotalDeliveries }} deliveries</div>
+          </div>
+        </div>
+      </div>
+
     </main>
+  </div>
+</div>
+
+<!-- ═══════════════════════ NAV MAP MODAL ═══════════════════════ -->
+<div class="modal-overlay" *ngIf="showNavMap" (click)="closeNavMap()">
+  <div class="nav-map-box" (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="nav-map-header">
+      <div class="nav-map-title-row">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" width="18" height="18">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+        </svg>
+        <span class="nav-map-title">Route Map — #ORD-{{ navOrder?.deliveryId }}</span>
+      </div>
+      <button class="modal-close" (click)="closeNavMap()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Address strip -->
+    <div class="nav-addr-strip" *ngIf="navOrder">
+      <div class="nav-addr-row">
+        <span class="nav-dot green-dot"></span>
+        <div class="nav-addr-text">
+          <span class="nav-addr-label">Pickup</span>
+          <span class="nav-addr-value">{{ navOrder.pickupAddress }}</span>
+        </div>
+      </div>
+      <div class="nav-addr-line"></div>
+      <div class="nav-addr-row">
+        <span class="nav-dot red-dot"></span>
+        <div class="nav-addr-text">
+          <span class="nav-addr-label">Drop</span>
+          <span class="nav-addr-value">{{ navOrder.dropAddress }}</span>
+        </div>
+      </div>
+      <div class="nav-route-info" *ngIf="getRouteInfo(navOrder)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" width="13" height="13">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        {{ getRouteInfo(navOrder) }}
+      </div>
+    </div>
+
+    <!-- Map container -->
+    <div class="nav-map-container" #navMapEl></div>
+
+    <!-- Footer actions -->
+    <div class="nav-map-footer" *ngIf="navOrder">
+      <button class="nav-open-maps-btn" (click)="openInMaps(navOrder!)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+        </svg>
+        Open in Maps
+      </button>
+      <button class="nav-picked-btn" (click)="markPickedUp(navOrder!); closeNavMap()">
+        Picked Up ✓
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ WITHDRAW MODAL ═══════════════════════ -->
+<div class="modal-overlay" *ngIf="showWithdrawModal" (click)="closeWithdraw()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+
+    <!-- Success state -->
+    <div class="wd-success" *ngIf="withdrawSuccess">
+      <div class="wd-success-icon">✅</div>
+      <div class="wd-success-title">Withdrawal Initiated!</div>
+      <div class="wd-success-sub">₹{{ withdrawAmount }} will be credited within 24 hours.</div>
+    </div>
+
+    <ng-container *ngIf="!withdrawSuccess">
+      <div class="modal-header">
+        <div class="modal-title">Withdraw Earnings</div>
+        <button class="modal-close" (click)="closeWithdraw()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Balance pill -->
+      <div class="wd-balance-pill">
+        Available: <strong>₹{{ walletBalance | number:'1.2-2' }}</strong>
+      </div>
+
+      <!-- Amount -->
+      <div class="wd-field">
+        <label>Amount to Withdraw</label>
+        <div class="wd-amount-wrap">
+          <span class="wd-rupee">₹</span>
+          <input type="number" [(ngModel)]="withdrawAmount" placeholder="0.00" min="1" [max]="withdrawMax"/>
+        </div>
+        <div class="wd-quick-btns">
+          <button (click)="withdrawAmount = '200'">₹200</button>
+          <button (click)="withdrawAmount = '500'">₹500</button>
+          <button (click)="withdrawAmount = '1000'">₹1000</button>
+          <button (click)="withdrawAmount = walletBalance.toString()">All</button>
+        </div>
+      </div>
+
+      <!-- Method tabs -->
+      <div class="wd-method-tabs">
+        <button [class.active]="withdrawMethod==='upi'"        (click)="withdrawMethod='upi'">UPI</button>
+        <button [class.active]="withdrawMethod==='netbanking'" (click)="withdrawMethod='netbanking'">Net Banking</button>
+        <button [class.active]="withdrawMethod==='bank'"       (click)="withdrawMethod='bank'">Bank Transfer</button>
+      </div>
+
+      <!-- UPI -->
+      <div *ngIf="withdrawMethod==='upi'" class="wd-method-body">
+        <div class="wd-field">
+          <label>Choose UPI App</label>
+          <div class="upi-apps">
+            <div *ngFor="let app of upiApps" class="upi-app-tile"
+                 [class.selected]="selectedUpiApp===app.id"
+                 (click)="selectedUpiApp=app.id">
+              <span class="upi-logo">{{ app.logo }}</span>
+              <span class="upi-label">{{ app.label }}</span>
+              <div class="upi-check" *ngIf="selectedUpiApp===app.id">✓</div>
+            </div>
+          </div>
+        </div>
+        <div class="wd-field">
+          <label>UPI ID</label>
+          <input class="wd-input" type="text" [(ngModel)]="upiId"
+                 placeholder="yourname@upi" autocomplete="off"/>
+          <div class="wd-hint">e.g. 9876543210&#64;ybl (PhonePe), name&#64;okaxis (GPay)</div>
+        </div>
+      </div>
+
+      <!-- Net Banking -->
+      <div *ngIf="withdrawMethod==='netbanking'" class="wd-method-body">
+        <div class="wd-field">
+          <label>Select Bank</label>
+          <select class="wd-input" [(ngModel)]="selectedBank">
+            <option value="">-- Choose your bank --</option>
+            <option *ngFor="let b of banks" [value]="b">{{ b }}</option>
+          </select>
+        </div>
+        <div class="wd-info-note">You'll be redirected to your bank's portal to complete the transfer.</div>
+      </div>
+
+      <!-- Bank Transfer -->
+      <div *ngIf="withdrawMethod==='bank'" class="wd-method-body">
+        <div class="wd-field">
+          <label>Account Number</label>
+          <input class="wd-input" type="text" [(ngModel)]="accountNumber" placeholder="Enter account number"/>
+        </div>
+        <div class="wd-field">
+          <label>IFSC Code</label>
+          <input class="wd-input" type="text" [(ngModel)]="ifscCode" placeholder="e.g. SBIN0001234"
+                 style="text-transform:uppercase" maxlength="11"/>
+        </div>
+      </div>
+
+      <button class="wd-submit-btn" [disabled]="!withdrawValid || withdrawing" (click)="submitWithdraw()">
+        <span *ngIf="withdrawing" class="wd-spinner"></span>
+        {{ withdrawing ? 'Processing…' : 'Withdraw ₹' + (withdrawAmount || '0') }}
+      </button>
+    </ng-container>
   </div>
 </div>
