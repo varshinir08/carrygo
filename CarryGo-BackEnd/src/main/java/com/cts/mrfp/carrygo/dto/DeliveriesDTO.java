@@ -58,6 +58,21 @@ public class DeliveriesDTO {
     private String commuterPhone;
     private String commuterVehicle;
 
+    // OTP (shown to sender; hidden from porter until arrived)
+    private String otp;
+
+    // Dynamic pricing metadata
+    private Float surgeMultiplier;
+    private String surgeLabel;
+    private Float zoneSurcharge;
+    private Float timeFare;
+    private String vehicleType;
+
+    // Broadcast tracking (shown on user's searching screen)
+    private Integer totalPool;
+    private Integer totalNotified;
+    private Integer totalRejected;
+
     // Constructors
     public DeliveriesDTO() {}
 
@@ -192,4 +207,31 @@ public class DeliveriesDTO {
 
     public String getCommuterVehicle() { return commuterVehicle; }
     public void setCommuterVehicle(String commuterVehicle) { this.commuterVehicle = commuterVehicle; }
+
+    public String getOtp()             { return otp; }
+    public void setOtp(String v)       { this.otp = v; }
+
+    public Float getSurgeMultiplier()          { return surgeMultiplier; }
+    public void setSurgeMultiplier(Float v)    { this.surgeMultiplier = v; }
+
+    public String getSurgeLabel()              { return surgeLabel; }
+    public void setSurgeLabel(String v)        { this.surgeLabel = v; }
+
+    public Float getZoneSurcharge()            { return zoneSurcharge; }
+    public void setZoneSurcharge(Float v)      { this.zoneSurcharge = v; }
+
+    public Float getTimeFare()                 { return timeFare; }
+    public void setTimeFare(Float v)           { this.timeFare = v; }
+
+    public String getVehicleType()             { return vehicleType; }
+    public void setVehicleType(String v)       { this.vehicleType = v; }
+
+    public Integer getTotalPool()              { return totalPool; }
+    public void setTotalPool(Integer v)        { this.totalPool = v; }
+
+    public Integer getTotalNotified()          { return totalNotified; }
+    public void setTotalNotified(Integer v)    { this.totalNotified = v; }
+
+    public Integer getTotalRejected()          { return totalRejected; }
+    public void setTotalRejected(Integer v)    { this.totalRejected = v; }
 }

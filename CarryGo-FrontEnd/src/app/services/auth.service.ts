@@ -42,10 +42,10 @@ export class AuthService {
       tap((user: any) => {
         if (user && user.userId) {
           if (isPlatformBrowser(this.platformId)) {
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            localStorage.setItem('userEmail', user.email);
-            localStorage.setItem('userId', user.userId.toString());
-            localStorage.setItem('userRole', user.role);
+            sessionStorage.setItem('currentUser', JSON.stringify(user));
+            sessionStorage.setItem('userEmail', user.email);
+            sessionStorage.setItem('userId', user.userId.toString());
+            sessionStorage.setItem('userRole', user.role);
           }
           this.currentUserSubject.next(user);
         }
@@ -59,7 +59,7 @@ export class AuthService {
 
   private getCurrentUserFromStorage() {
     if (!this.isBrowser()) return null;
-    const user = localStorage.getItem('currentUser');
+    const user = sessionStorage.getItem('currentUser');
     return user ? JSON.parse(user) : null;
   }
 
@@ -69,31 +69,31 @@ export class AuthService {
 
   getLoggedInUserEmail(): string | null {
     if (!this.isBrowser()) return null;
-    return localStorage.getItem('userEmail');
+    return sessionStorage.getItem('userEmail');
   }
 
   getLoggedInUserId(): number | null {
     if (!this.isBrowser()) return null;
-    const id = localStorage.getItem('userId');
+    const id = sessionStorage.getItem('userId');
     return id ? parseInt(id, 10) : null;
   }
 
   getUserRole(): string | null {
     if (!this.isBrowser()) return null;
-    return localStorage.getItem('userRole');
+    return sessionStorage.getItem('userRole');
   }
 
   isLoggedIn(): boolean {
     if (!this.isBrowser()) return false;
-    return !!localStorage.getItem('currentUser');
+    return !!sessionStorage.getItem('currentUser');
   }
 
   logout() {
     if (this.isBrowser()) {
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('userId');
-      localStorage.removeItem('userRole');
+      sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('userEmail');
+      sessionStorage.removeItem('userId');
+      sessionStorage.removeItem('userRole');
     }
     this.currentUserSubject.next(null);
     this.router.navigate(['/login']);

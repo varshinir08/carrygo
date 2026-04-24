@@ -50,8 +50,8 @@ export class CommuterRegisterComponent implements OnInit {
       timeout(10000)  // fail after 10 s so the button never stays stuck
     ).subscribe({
       next: (updatedUser: any) => {
-        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-        localStorage.setItem('userRole', updatedUser.role);
+        sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        sessionStorage.setItem('userRole', updatedUser.role);
         this.isSubmitting = false;
         this.cdr.detectChanges();
         this.router.navigate(['/porter-dashboard', updatedUser.userId]);

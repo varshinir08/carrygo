@@ -143,11 +143,17 @@ public class DeliveriesController {
     // Get PENDING deliveries matched to a specific porter's routes
     @GetMapping("/matched/{porterId}")
     public List<DeliveriesDTO> getMatchedDeliveries(@PathVariable Integer porterId) {
+        // Busy check removed: porters should always see pending requests.
+        // The /accept endpoint rejects double-booking on the server side.
+
         List<Deliveries> pending = deliveryService.getAllAvailableDeliveries();
         List<PorterRoute> routes = routeService.getRoutesByPorter(porterId);
 
         return pending.stream()
             .filter(d -> {
+                // Skip orders with no addresses — invalid/test data
+                if (d.getPickupAddress() == null || d.getPickupAddress().isBlank()
+                 || d.getDropAddress()   == null || d.getDropAddress().isBlank()) return false;
                 // No coords on delivery → show to everyone (fallback)
                 if (d.getPickupLat() == null || d.getDropLat() == null) return true;
                 // No routes set → show everything
@@ -172,5 +178,52 @@ public class DeliveriesController {
     public List<DeliveriesDTO> getPersonalizedUserDeliveries(@PathVariable Integer userId) {
         List<Deliveries> deliveries = deliveryService.getDeliveriesByUser(userId);
         return deliveries.stream().map(DTOConverter::convertDeliveriesToDTO).collect(Collectors.toList());
+    }
+
+    // ── Feature 4: Porter arrived at pickup ────────────────────────────────────
+
+    @PatchMapping("/{id}/arrived")
+    public ResponseEntity<?> markArrived(@PathVariable Integer id,
+                                          @RequestParam Integer commuterId) {
+        try {
+            Deliveries d = deliveryService.markArrived(id, commuterId);
+            return ResponseEntity.ok(DTOConverter.convertDeliveriesToDTO(d));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ── Feature 4: Verify OTP and start ride ──────────────────────────────────
+
+    @PostMapping("/{id}/verify-otp")
+    public ResponseEntity<?> verifyOtp(@PathVariable Integer id,
+                                        @RequestBody java.util.Map<String, String> body) {
+        String entered = body.getOrDefault("enteredOtp", "");
+        try {
+            Deliveries d = deliveryService.verifyOtp(id, entered);
+            return ResponseEntity.ok(java.util.Map.of(
+                "success",     true,
+                "rideStarted", true,
+                "delivery",    DTOConverter.convertDeliveriesToDTO(d)
+            ));
+        } catch (RuntimeException e) {
+            String msg = "OTP_MISMATCH".equals(e.getMessage())
+                ? "Incorrect OTP — ask the rider to check their app"
+                : e.getMessage();
+            return ResponseEntity.badRequest().body(java.util.Map.of("success", false, "error", msg));
+        }
+    }
+
+    // ── Feature 2 & 5: Porter rejects a request (or 15s timer fires) ──────────
+
+    @PatchMapping("/{id}/reject")
+    public ResponseEntity<?> rejectDelivery(@PathVariable Integer id,
+                                             @RequestParam Integer commuterId) {
+        try {
+            deliveryService.rejectDelivery(id, commuterId);
+            return ResponseEntity.ok(java.util.Map.of("success", true));
+        } catch (Exception e) {
+            return ResponseEntity.ok(java.util.Map.of("success", false));
+        }
     }
 }

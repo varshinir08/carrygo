@@ -3,16 +3,23 @@ package com.cts.mrfp.carrygo.service;
 import com.cts.mrfp.carrygo.dto.UsersDTO;
 import com.cts.mrfp.carrygo.dto.CommuterRegistrationRequest;
 import com.cts.mrfp.carrygo.model.Users;
+import com.cts.mrfp.carrygo.model.Wallets;
 import com.cts.mrfp.carrygo.repository.UsersRepository;
+import com.cts.mrfp.carrygo.repository.WalletsRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Optional;
 
 @Service
 public class UsersService {
     private final UsersRepository usersRepository;
+
+    @Autowired
+    private WalletsRepository walletsRepository;
 
     public UsersService(UsersRepository usersRepository) {
         this.usersRepository = usersRepository;
@@ -26,7 +33,16 @@ public class UsersService {
         users.setEmail(users.getEmail().trim());
         users.setPassword(users.getPassword().trim());
         users.setRole(users.getRole() != null ? users.getRole().trim().toLowerCase() : "user");
-        return usersRepository.save(users);
+        Users saved = usersRepository.save(users);
+
+        // Auto-create wallet with 0 balance for every new user
+        Wallets wallet = new Wallets();
+        wallet.setUser(saved);
+        wallet.setBalance(0f);
+        wallet.setLastUpdated(LocalDateTime.now());
+        walletsRepository.save(wallet);
+
+        return saved;
     }
 
     // Login with email + password + role

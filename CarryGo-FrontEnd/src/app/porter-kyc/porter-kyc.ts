@@ -263,12 +263,12 @@ export class PorterKycComponent implements OnInit {
 
     this.http.put(`${this.apiBase}/users/${this.porterProfile.userId}`, payload).subscribe({
       next: (updatedUser: any) => {
-        // Merge updated fields into localStorage so profile shows KYC as verified
+        // Merge updated fields into sessionStorage so profile shows KYC as verified
         try {
-          const stored = localStorage.getItem('currentUser');
+          const stored = sessionStorage.getItem('currentUser');
           if (stored) {
             const merged = { ...JSON.parse(stored), ...updatedUser };
-            localStorage.setItem('currentUser', JSON.stringify(merged));
+            sessionStorage.setItem('currentUser', JSON.stringify(merged));
           }
         } catch {}
         this.isSubmitting = false;

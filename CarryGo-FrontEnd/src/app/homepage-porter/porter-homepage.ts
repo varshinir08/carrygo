@@ -1,6 +1,7 @@
 import {
   Component, OnInit, OnDestroy, HostListener,
-  AfterViewInit, ViewChild, ElementRef, Inject, PLATFORM_ID
+  AfterViewInit, ViewChild, ViewChildren, QueryList, ElementRef,
+  Inject, PLATFORM_ID, ChangeDetectorRef
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,8 +11,10 @@ import { UserService } from '../services/user-service';
 import { AuthService } from '../services/auth.service';
 import { Delivery } from '../services/delivery/delivery';
 import { PorterStatusService } from '../services/porter-status.service';
+import { SseService } from '../services/sse.service';
 import { forkJoin, interval, Subscription } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { catchError, switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 interface DeliveryOrder {
   deliveryId: number;
@@ -26,6 +29,10 @@ interface DeliveryOrder {
   distanceKm: number;
   status: string;
   createdAt: string;
+  otp?: string;
+  surgeMultiplier?: number;
+  surgeLabel?: string;
+  vehicleType?: string;
 }
 
 interface PorterProfile {
@@ -62,6 +69,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
 
   @ViewChild('deliveriesChart') deliveriesChartRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('earningsChart')   earningsChartRef!:   ElementRef<HTMLCanvasElement>;
+  @ViewChildren('otpInput')     otpInputRefs!: QueryList<ElementRef<HTMLInputElement>>;
 
   porterProfile: PorterProfile | null = null;
   walletData: WalletData | null = null;
@@ -93,6 +101,28 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   private deliveriesChartInstance: any = null;
   private earningsChartInstance:   any = null;
   private chartLib: any = null;
+
+  // ── Feature 3: Ride Request Popup ────────────────────────────────────────
+  showRequestPopup  = false;
+  incomingRequest:  DeliveryOrder | null = null;
+  countdown         = 15;
+  private countdownTimer: any = null;
+
+  // ── Feature 4: OTP Flow ───────────────────────────────────────────────────
+  showOtpPanel  = false;
+  otpOrderId:   number | null = null;
+  otpDigits     = ['', '', '', ''];
+  otpError      = '';
+  otpSubmitting = false;
+
+  // ── Chat ─────────────────────────────────────────────────────────────────
+  showChat        = false;
+  chatDeliveryId: number | null = null;
+  chatOrder:      DeliveryOrder | null = null;
+  chatMessages:   any[] = [];
+  chatInput       = '';
+  chatSending     = false;
+  @ViewChild('chatScroll') chatScrollRef!: ElementRef<HTMLElement>;
 
   // Navigation map modal
   showNavMap        = false;
@@ -127,6 +157,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     'Canara Bank', 'Union Bank of India', 'IndusInd Bank',
   ];
 
+  private sseSub: Subscription | null = null;
   private pollSub: Subscription | null = null;
   private readonly apiBase = 'http://localhost:8081/api';
 
@@ -137,6 +168,8 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     private router:         Router,
     private http:           HttpClient,
     private statusService:  PorterStatusService,
+    private sseService:     SseService,
+    private cdr:            ChangeDetectorRef,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
@@ -145,13 +178,15 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     this.loadPorterData();
   }
 
-  ngAfterViewInit(): void {
-    // Charts are rendered after data loads; see renderCharts()
-  }
+  ngAfterViewInit(): void {}
 
   ngOnDestroy(): void {
     this.pollSub?.unsubscribe();
+    this.sseSub?.unsubscribe();
+    this.sseService.disconnect();
+    this.stopCountdown();
     this.destroyCharts();
+    if (this.chatDeliveryId) this.sseService.unsubscribeFromChat(this.chatDeliveryId);
   }
 
   // ── Week labels ──────────────────────────────────────────────────────────
@@ -179,6 +214,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
         this.loadWallet(profile.userId);
         this.loadDeliveries(profile.userId);
         this.startPolling(profile.userId);
+        this.connectSse(profile.userId);
       },
       error: () => { this.errorMessage = 'Failed to load porter profile'; }
     });
@@ -196,36 +232,163 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   }
 
   loadDeliveries(userId: number): void {
+    // Load MY assigned orders; also catch up on any PENDING orders I may have missed via SSE
     forkJoin({
-      mine:    this.http.get<DeliveryOrder[]>(`${this.apiBase}/deliveries/commuter/${userId}`),
-      matched: this.http.get<DeliveryOrder[]>(`${this.apiBase}/deliveries/matched/${userId}`)
+      mine:    this.http.get<DeliveryOrder[]>(`${this.apiBase}/deliveries/commuter/${userId}`)
+                 .pipe(catchError(() => of([] as DeliveryOrder[]))),
+      pending: this.isOnline
+                 ? this.http.get<DeliveryOrder[]>(`${this.apiBase}/deliveries/matched/${userId}`)
+                     .pipe(catchError(() => of([] as DeliveryOrder[])))
+                 : of([] as DeliveryOrder[]),
     }).subscribe({
-      next: ({ mine, matched }) => {
+      next: ({ mine, pending }) => {
         this.allDeliveries     = mine;
-        this.activeOrders      = mine.filter(d => d.status === 'ACCEPTED' || d.status === 'PICKED_UP');
-        this.orderRequests     = this.isOnline ? matched : [];
+        this.activeOrders      = mine.filter(d =>
+          d.status === 'ACCEPTED' || d.status === 'ARRIVED_AT_PICKUP' || d.status === 'PICKED_UP');
         this.activeOrdersCount = this.activeOrders.length;
         this.completedCount    = mine.filter(d => d.status === 'DELIVERED').length;
         this.todayDeliveries   = mine.length;
-        this.notificationCount = this.isOnline ? matched.length : 0;
         this.buildChartData(mine);
         this.renderCharts();
-      },
-      error: () => {}
+
+        // Catch-up: add valid PENDING orders that SSE may have missed
+        if (this.isOnline && pending.length) {
+          const existingIds = new Set(this.orderRequests.map(r => r.deliveryId));
+          const missed = pending
+            .filter(p => this.isValidOrder(p))
+            .filter(p => !existingIds.has(p.deliveryId));
+          if (missed.length) {
+            this.orderRequests     = [...missed, ...this.orderRequests];
+            this.notificationCount = this.orderRequests.length;
+            this.openPopup(missed[0]);
+          }
+        }
+
+        this.cdr.detectChanges();
+      }
     });
   }
 
   startPolling(userId: number): void {
     this.pollSub = interval(30000).pipe(
-      switchMap(() => this.http.get<DeliveryOrder[]>(`${this.apiBase}/deliveries/matched/${userId}`))
+      switchMap(() => forkJoin({
+        mine:    this.http.get<DeliveryOrder[]>(`${this.apiBase}/deliveries/commuter/${userId}`)
+                   .pipe(catchError(() => of([] as DeliveryOrder[]))),
+        pending: this.isOnline
+                   ? this.http.get<DeliveryOrder[]>(`${this.apiBase}/deliveries/matched/${userId}`)
+                       .pipe(catchError(() => of([] as DeliveryOrder[])))
+                   : of([] as DeliveryOrder[]),
+      }))
     ).subscribe({
-      next: (matched) => {
-        if (!this.isOnline) return;
-        this.orderRequests     = matched;
-        this.notificationCount = matched.length;
+      next: ({ mine, pending }) => {
+        this.activeOrders      = mine.filter(d =>
+          d.status === 'ACCEPTED' || d.status === 'ARRIVED_AT_PICKUP' || d.status === 'PICKED_UP');
+        this.activeOrdersCount = this.activeOrders.length;
+        this.completedCount    = mine.filter(d => d.status === 'DELIVERED').length;
+
+        // Catch-up: surface valid PENDING requests missed by SSE
+        if (this.isOnline && pending.length) {
+          const existingIds = new Set(this.orderRequests.map(r => r.deliveryId));
+          const missed = pending
+            .filter(p => this.isValidOrder(p))
+            .filter(p => !existingIds.has(p.deliveryId));
+          if (missed.length) {
+            this.orderRequests     = [...missed, ...this.orderRequests];
+            this.notificationCount = this.orderRequests.length;
+            if (!this.showRequestPopup) this.openPopup(missed[0]);
+          }
+        }
+        this.cdr.detectChanges();
       }
     });
   }
+
+  // ── SSE Subscription (Feature 3) ─────────────────────────────────────────
+  connectSse(userId: number): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    // isPorter=true → also subscribes to /topic/new-orders broadcast topic
+    this.sseSub = this.sseService.connect(userId, true).subscribe({
+      next: ({ event, data }) => {
+        if (event === 'rideRequest' && this.isOnline) {
+          this.handleIncomingRequest(data);
+        }
+        if (event === 'chatMessage' && this.showChat && data.deliveryId === this.chatDeliveryId) {
+          if (!this.chatMessages.some((m: any) => m.id === data.id)) {
+            this.chatMessages = [...this.chatMessages, data];
+            this.cdr.detectChanges();
+            this.scrollPorterChatToBottom();
+          }
+        }
+      }
+    });
+  }
+
+  handleIncomingRequest(request: DeliveryOrder): void {
+    if (!this.isValidOrder(request)) return;
+    const alreadySeen = this.orderRequests.some(r => r.deliveryId === request.deliveryId);
+    if (!alreadySeen) {
+      this.orderRequests     = [request, ...this.orderRequests];
+      this.notificationCount = this.orderRequests.length;
+    }
+    this.openPopup(request);
+    this.cdr.detectChanges();
+  }
+
+  // ── Popup logic (Feature 3) ───────────────────────────────────────────────
+  openPopup(request: DeliveryOrder): void {
+    this.stopCountdown();
+    this.incomingRequest = request;
+    this.countdown       = 15;
+    this.showRequestPopup = true;
+
+    this.countdownTimer = setInterval(() => {
+      this.countdown--;
+      this.cdr.detectChanges();
+      if (this.countdown <= 0) {
+        this.autoDismissPopup();
+      }
+    }, 1000);
+  }
+
+  autoDismissPopup(): void {
+    const req = this.incomingRequest;
+    this.closePopup();
+    // Notify backend that this porter timed out (counts as implicit reject)
+    if (req && this.porterProfile) {
+      this.http.patch(`${this.apiBase}/deliveries/${req.deliveryId}/reject?commuterId=${this.porterProfile.userId}`, {})
+        .pipe(catchError(() => of(null))).subscribe();
+    }
+  }
+
+  closePopup(): void {
+    this.stopCountdown();
+    this.showRequestPopup  = false;
+    this.incomingRequest   = null;
+    this.cdr.detectChanges();
+  }
+
+  private stopCountdown(): void {
+    if (this.countdownTimer) { clearInterval(this.countdownTimer); this.countdownTimer = null; }
+  }
+
+  handleAcceptPopup(): void {
+    const req = this.incomingRequest;
+    this.closePopup();
+    if (req) this.acceptOrder(req);
+  }
+
+  handleRejectPopup(): void {
+    const req = this.incomingRequest;
+    this.closePopup();
+    if (req) this.rejectOrder(req);
+  }
+
+  get countdownPct(): number { return (this.countdown / 15) * 100; }
+  get countdownDash(): number {
+    const r = 26; const circ = 2 * Math.PI * r;
+    return circ - (this.countdownPct / 100) * circ;
+  }
+  get countdownCircumference(): number { return 2 * Math.PI * 26; }
 
   // ── Chart data ────────────────────────────────────────────────────────────
   buildChartData(deliveries: DeliveryOrder[]): void {
@@ -246,24 +409,15 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
 
   async renderCharts(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
-
     try {
       if (!this.chartLib) {
         const mod    = await import('chart.js');
         this.chartLib = mod.Chart;
         this.chartLib.register(...mod.registerables);
       }
-
       this.destroyCharts();
-
-      // Wait a tick for ViewChild refs to be available
-      setTimeout(() => {
-        this.buildDeliveriesChart();
-        this.buildEarningsChart();
-      }, 50);
-    } catch (e) {
-      console.warn('Chart.js load error', e);
-    }
+      setTimeout(() => { this.buildDeliveriesChart(); this.buildEarningsChart(); }, 50);
+    } catch (e) { console.warn('Chart.js load error', e); }
   }
 
   private buildDeliveriesChart(): void {
@@ -273,25 +427,15 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
       type: 'bar',
       data: {
         labels: this.weekLabels,
-        datasets: [{
-          label: 'Deliveries',
-          data: this.weekDeliveries,
-          backgroundColor: 'rgba(37,99,235,0.75)',
-          borderRadius: 6,
-          borderSkipped: false,
-        }]
+        datasets: [{ label: 'Deliveries', data: this.weekDeliveries,
+          backgroundColor: 'rgba(37,99,235,0.75)', borderRadius: 6, borderSkipped: false }]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
           x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1, color: '#64748b', font: { size: 11 } },
-            grid: { color: '#f1f5f9' }
-          }
+          y: { beginAtZero: true, ticks: { stepSize: 1, color: '#64748b', font: { size: 11 } }, grid: { color: '#f1f5f9' } }
         }
       }
     });
@@ -304,42 +448,25 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
       type: 'line',
       data: {
         labels: this.weekLabels,
-        datasets: [{
-          label: '₹ Earnings',
-          data: this.weekEarnings,
-          borderColor: '#7c3aed',
-          backgroundColor: 'rgba(124,58,237,0.08)',
-          borderWidth: 2.5,
-          pointBackgroundColor: '#7c3aed',
-          pointRadius: 4,
-          fill: true,
-          tension: 0.4,
-        }]
+        datasets: [{ label: '₹ Earnings', data: this.weekEarnings,
+          borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)',
+          borderWidth: 2.5, pointBackgroundColor: '#7c3aed', pointRadius: 4, fill: true, tension: 0.4 }]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
           x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
-          y: {
-            beginAtZero: true,
-            ticks: {
-              color: '#64748b', font: { size: 11 },
-              callback: (v: any) => `₹${v}`
-            },
-            grid: { color: '#f1f5f9' }
-          }
+          y: { beginAtZero: true, ticks: { color: '#64748b', font: { size: 11 },
+            callback: (v: any) => `₹${v}` }, grid: { color: '#f1f5f9' } }
         }
       }
     });
   }
 
   private destroyCharts(): void {
-    this.deliveriesChartInstance?.destroy();
-    this.earningsChartInstance?.destroy();
-    this.deliveriesChartInstance = null;
-    this.earningsChartInstance   = null;
+    this.deliveriesChartInstance?.destroy(); this.deliveriesChartInstance = null;
+    this.earningsChartInstance?.destroy();   this.earningsChartInstance   = null;
   }
 
   // ── Toggle ────────────────────────────────────────────────────────────────
@@ -356,21 +483,41 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     setTimeout(() => { this.isToggling = false; }, 500);
     setTimeout(() => { this.statusToast = ''; }, 2800);
 
-    this.userService.updatePorterStatus(this.porterProfile.userId, newStatus).subscribe({
-      next: () => { if (newStatus) this.loadAvailableOrders(); },
-      error: () => { if (newStatus) this.loadAvailableOrders(); }
+    const uid = this.porterProfile.userId;
+    this.userService.updatePorterStatus(uid, newStatus).subscribe({
+      next:  () => { if (newStatus) this.fetchPendingForPorter(uid); },
+      error: () => { if (newStatus) this.fetchPendingForPorter(uid); }
     });
   }
 
-  loadAvailableOrders(): void {
-    if (!this.isOnline || !this.porterProfile) return;
-    this.http.get<DeliveryOrder[]>(`${this.apiBase}/deliveries/matched/${this.porterProfile.userId}`).subscribe({
-      next: (matched) => { this.orderRequests = matched; this.notificationCount = matched.length; },
-      error: () => {}
-    });
+  loadAvailableOrders(): void {}
+
+  /** One-shot catch-up: fetch any PENDING orders we may have missed via SSE. */
+  fetchPendingForPorter(userId: number): void {
+    this.http.get<DeliveryOrder[]>(`${this.apiBase}/deliveries/matched/${userId}`)
+      .pipe(catchError(() => of([] as DeliveryOrder[])))
+      .subscribe({
+        next: (pending) => {
+          const valid = pending.filter(p => this.isValidOrder(p));
+          if (!valid.length) return;
+          const existingIds = new Set(this.orderRequests.map(r => r.deliveryId));
+          const missed = valid.filter(p => !existingIds.has(p.deliveryId));
+          if (missed.length) {
+            this.orderRequests     = [...missed, ...this.orderRequests];
+            this.notificationCount = this.orderRequests.length;
+            this.openPopup(missed[0]);
+            this.cdr.detectChanges();
+          }
+        }
+      });
   }
 
-  // ── Accept / Reject ───────────────────────────────────────────────────────
+  /** An order is valid only if it has both pickup and drop addresses. */
+  private isValidOrder(order: DeliveryOrder): boolean {
+    return !!(order.pickupAddress?.trim()) && !!(order.dropAddress?.trim());
+  }
+
+  // ── Accept / Reject (Feature 2 — no fake orders) ─────────────────────────
   acceptOrder(order: DeliveryOrder): void {
     if (!this.porterProfile) return;
     this.http.patch<DeliveryOrder>(
@@ -386,27 +533,112 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
         this.activeOrders      = [merged, ...this.activeOrders];
         this.activeOrdersCount = this.activeOrders.length;
         this.notificationCount = this.orderRequests.length;
-        // Auto-open navigation map — eliminates the separate "Navigate" tap
+        // Feature 4: Auto-open navigation map immediately after accept
         this.openNavMap(merged);
+        this.cdr.detectChanges();
       },
-      error: () => { this.errorMessage = 'Failed to accept order.'; setTimeout(() => this.errorMessage = '', 3000); }
+      error: (err) => {
+        const msg = err?.status === 409 ? 'Order was already taken by another porter' : 'Failed to accept order.';
+        this.errorMessage = msg;
+        setTimeout(() => { this.errorMessage = ''; this.cdr.detectChanges(); }, 3000);
+      }
     });
   }
 
   rejectOrder(order: DeliveryOrder): void {
     this.orderRequests     = this.orderRequests.filter(o => o.deliveryId !== order.deliveryId);
     this.notificationCount = this.orderRequests.length;
+    // Notify backend so broadcast progress bar updates for the user
+    if (this.porterProfile) {
+      this.http.patch(`${this.apiBase}/deliveries/${order.deliveryId}/reject?commuterId=${this.porterProfile.userId}`, {})
+        .pipe(catchError(() => of(null))).subscribe();
+    }
+    this.cdr.detectChanges();
   }
 
-  markPickedUp(order: DeliveryOrder): void {
+  // ── Feature 4: "I've Arrived" → OTP flow ──────────────────────────────────
+  markArrived(order: DeliveryOrder): void {
+    if (!this.porterProfile) return;
     this.http.patch<DeliveryOrder>(
-      `${this.apiBase}/deliveries/${order.deliveryId}/status?status=PICKED_UP`, {}
+      `${this.apiBase}/deliveries/${order.deliveryId}/arrived?commuterId=${this.porterProfile.userId}`, {}
     ).subscribe({
       next: (updated) => {
         const idx = this.activeOrders.findIndex(o => o.deliveryId === order.deliveryId);
-        if (idx !== -1) this.activeOrders[idx] = updated;
+        if (idx !== -1) this.activeOrders[idx] = { ...this.activeOrders[idx], ...updated };
+        this.showOtpPanel = true;
+        this.otpOrderId   = order.deliveryId;
+        this.otpDigits    = ['', '', '', ''];
+        this.otpError     = '';
+        this.cdr.detectChanges();
+      },
+      error: () => { this.errorMessage = 'Failed to mark arrival.'; }
+    });
+  }
+
+  onOtpInput(event: Event, index: number): void {
+    const input = event.target as HTMLInputElement;
+    const val = input.value.replace(/\D/g, '').slice(-1);
+    input.value = val;                       // enforce single digit in DOM immediately
+    const digits = [...this.otpDigits];      // NEW array reference — Angular CD detects this
+    digits[index] = val;
+    this.otpDigits = digits;
+    this.cdr.detectChanges();
+    if (val && index < 3) {
+      this.otpInputRefs?.toArray()[index + 1]?.nativeElement.focus();
+    }
+  }
+
+  onOtpBackspace(event: Event, index: number): void {
+    if (!this.otpDigits[index] && index > 0) {
+      const digits = [...this.otpDigits];
+      digits[index - 1] = '';
+      this.otpDigits = digits;
+      const prev = this.otpInputRefs?.toArray()[index - 1]?.nativeElement;
+      if (prev) { prev.value = ''; prev.focus(); }
+      this.cdr.detectChanges();
+    }
+  }
+
+  submitOtp(): void {
+    const otp = this.otpDigits.map(d => d.trim()).join('');
+    if (otp.length !== 4 || !/^\d{4}$/.test(otp) || !this.otpOrderId || this.otpSubmitting) return;
+    this.otpSubmitting = true;
+    this.otpError      = '';
+
+    this.http.post<any>(
+      `${this.apiBase}/deliveries/${this.otpOrderId}/verify-otp`,
+      { enteredOtp: otp }
+    ).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.showOtpPanel = false;
+          this.otpOrderId   = null;
+          // Update status to PICKED_UP in local list
+          const idx = this.activeOrders.findIndex(o => o.deliveryId === res.delivery?.deliveryId);
+          if (idx !== -1) this.activeOrders[idx] = { ...this.activeOrders[idx], status: 'PICKED_UP' };
+          // Switch map to drop route
+          const order = this.activeOrders.find(o => o.deliveryId === res.delivery?.deliveryId);
+          if (order) this.openNavMap(order);
+          this.cdr.detectChanges();
+        } else {
+          this.otpError = res.error || 'Incorrect OTP — ask the rider to check their app';
+        }
+        this.otpSubmitting = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.otpError     = err?.error?.error || 'Incorrect OTP — ask the rider to check their app';
+        this.otpSubmitting = false;
+        this.otpDigits     = ['', '', '', ''];
+        this.cdr.detectChanges();
       }
     });
+  }
+
+  cancelOtp(): void {
+    this.showOtpPanel = false; this.otpOrderId = null;
+    this.otpDigits    = ['', '', '', '']; this.otpError = '';
+    this.cdr.detectChanges();
   }
 
   markDelivered(order: DeliveryOrder): void {
@@ -420,11 +652,11 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
         this.completedCount++;
         this.earningsToday += earned;
         this.walletBalance += earned;
-        // Update chart
         this.weekDeliveries[6]++;
         this.weekEarnings[6] += earned;
         this.updateChartsData();
         if (this.porterProfile) this.loadWallet(this.porterProfile.userId);
+        this.cdr.detectChanges();
       }
     });
   }
@@ -439,6 +671,36 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
       this.earningsChartInstance.update();
     }
   }
+
+  // ── Single contextual action driving ACCEPTED → ARRIVED → OTP → PICKED_UP → DELIVERED
+  nextAction(order: DeliveryOrder): void {
+    if (order.status === 'ACCEPTED')        { this.markArrived(order); return; }
+    if (order.status === 'ARRIVED_AT_PICKUP') {
+      this.showOtpPanel = true; this.otpOrderId = order.deliveryId;
+      this.otpDigits = ['', '', '', '']; this.otpError = '';
+      this.cdr.detectChanges(); return;
+    }
+    if (order.status === 'PICKED_UP')       this.markDelivered(order);
+  }
+
+  getActionLabel(order: DeliveryOrder): string {
+    if (order.status === 'ACCEPTED')         return "I've Arrived";
+    if (order.status === 'ARRIVED_AT_PICKUP') return 'Enter OTP';
+    return 'End Ride';
+  }
+
+  getStatusLabel(status: string): string {
+    const map: Record<string, string> = {
+      ACCEPTED: 'Heading to pickup',
+      ARRIVED_AT_PICKUP: 'At pickup — awaiting OTP',
+      PICKED_UP: 'Ride in progress',
+      DELIVERED: 'Delivered'
+    };
+    return map[status] ?? status;
+  }
+
+  isPickedUp(order: DeliveryOrder): boolean { return order.status === 'PICKED_UP'; }
+  isArrived(order: DeliveryOrder): boolean  { return order.status === 'ARRIVED_AT_PICKUP'; }
 
   // ── Withdraw modal ────────────────────────────────────────────────────────
   openWithdraw(): void {
@@ -469,9 +731,8 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   submitWithdraw(): void {
     if (!this.withdrawValid || this.withdrawing) return;
     this.withdrawing = true;
-    // Simulate processing delay
     setTimeout(() => {
-      const amt         = parseFloat(this.withdrawAmount);
+      const amt          = parseFloat(this.withdrawAmount);
       this.walletBalance -= amt;
       this.withdrawing   = false;
       this.withdrawSuccess = true;
@@ -512,14 +773,12 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     const L = this.navMapLib;
     this.navMapInstance?.remove();
 
-    // Default center India
     const map = L.map(el, { zoomControl: true }).setView([20.5937, 78.9629], 5);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap', maxZoom: 19
     }).addTo(map);
     this.navMapInstance = map;
 
-    // Geocode both addresses if no coords stored
     const [pickupCoord, dropCoord] = await Promise.all([
       this.geocodeAddress(order.pickupAddress),
       this.geocodeAddress(order.dropAddress),
@@ -539,34 +798,27 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     });
 
     L.marker([pickupCoord.lat, pickupCoord.lng], { icon: greenIcon })
-      .addTo(map)
-      .bindPopup(`<b>Pickup</b><br>${order.pickupAddress}`)
-      .openPopup();
+      .addTo(map).bindPopup(`<b>Pickup</b><br>${order.pickupAddress}`).openPopup();
+    L.marker([dropCoord.lat,   dropCoord.lng],   { icon: redIcon })
+      .addTo(map).bindPopup(`<b>Drop</b><br>${order.dropAddress}`);
 
-    L.marker([dropCoord.lat, dropCoord.lng], { icon: redIcon })
-      .addTo(map)
-      .bindPopup(`<b>Drop</b><br>${order.dropAddress}`);
-
-    // Fit bounds to show both
     const bounds = L.latLngBounds(
       [pickupCoord.lat, pickupCoord.lng],
       [dropCoord.lat,   dropCoord.lng]
     );
     map.fitBounds(bounds, { padding: [40, 40] });
 
-    // Draw route via OSRM
     try {
       const url = `https://router.project-osrm.org/route/v1/driving/${pickupCoord.lng},${pickupCoord.lat};${dropCoord.lng},${dropCoord.lat}?overview=full&geometries=geojson`;
       const resp: any = await fetch(url).then(r => r.json());
       if (resp.routes?.[0]) {
+        const color = order.status === 'PICKED_UP' ? '#7c3aed' : '#2563eb';
         L.geoJSON(resp.routes[0].geometry, {
-          style: { color: '#2563eb', weight: 4, opacity: 0.85 }
+          style: { color, weight: 4, opacity: 0.85 }
         }).addTo(map);
         const dist = (resp.routes[0].distance / 1000).toFixed(1);
         const dur  = Math.round(resp.routes[0].duration / 60);
-        if (this.navOrder) {
-          (this.navOrder as any)._routeInfo = `${dist} km · ~${dur} min`;
-        }
+        if (this.navOrder) (this.navOrder as any)._routeInfo = `${dist} km · ~${dur} min`;
       }
     } catch {}
   }
@@ -580,43 +832,19 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     return null;
   }
 
-  getRouteInfo(order: DeliveryOrder): string {
-    return (order as any)._routeInfo || '';
-  }
+  getRouteInfo(order: DeliveryOrder): string { return (order as any)._routeInfo || ''; }
 
   openInMaps(order: DeliveryOrder): void {
-    const q = encodeURIComponent(`${order.pickupAddress} to ${order.dropAddress}`);
     window.open(`https://www.openstreetmap.org/directions?from=${encodeURIComponent(order.pickupAddress)}&to=${encodeURIComponent(order.dropAddress)}`, '_blank');
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  // Single method drives the active-order lifecycle: ACCEPTED → PICKED_UP → DELIVERED
-  nextAction(order: DeliveryOrder): void {
-    if (order.status === 'ACCEPTED') this.markPickedUp(order);
-    else if (order.status === 'PICKED_UP') this.markDelivered(order);
-  }
-
-  getActionLabel(order: DeliveryOrder): string {
-    return order.status === 'PICKED_UP' ? 'Mark Delivered' : 'Confirm Pickup';
-  }
-
-  getStatusLabel(status: string): string {
-    const map: Record<string, string> = {
-      ACCEPTED: 'Pending pickup', PICKED_UP: 'Picked up', DELIVERED: 'Delivered'
-    };
-    return map[status] ?? status;
-  }
-
-  isPickedUp(order: DeliveryOrder): boolean { return order.status === 'PICKED_UP'; }
-
-  get weekTotalEarnings(): number  { return this.weekEarnings.reduce((a, b) => a + b, 0); }
+  get weekTotalEarnings(): number   { return this.weekEarnings.reduce((a, b) => a + b, 0); }
   get weekTotalDeliveries(): number { return this.weekDeliveries.reduce((a, b) => a + b, 0); }
 
   navigate(section: string): void {
     this.activeSection = section;
-    if (section === 'dashboard') {
-      setTimeout(() => this.renderCharts(), 100);
-    }
+    if (section === 'dashboard') setTimeout(() => this.renderCharts(), 100);
   }
 
   getFirstName(): string {
@@ -635,6 +863,70 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   onDocumentClick(event: MouseEvent): void {
     const el = document.querySelector('.profile-section');
     if (el && !el.contains(event.target as Node)) this.showProfileDropdown = false;
+  }
+
+  goToUserDashboard(): void {
+    const userId = this.porterProfile?.userId ?? this.authService.getLoggedInUserId();
+    if (userId) this.router.navigate(['/user-dashboard', userId]);
+    else        this.router.navigate(['/user-dashboard']);
+  }
+
+  // ── Chat ─────────────────────────────────────────────────────────────────
+
+  openPorterChat(order: DeliveryOrder): void {
+    this.chatOrder      = order;
+    this.chatDeliveryId = order.deliveryId;
+    this.chatMessages   = [];
+    this.showChat       = true;
+    this.http.get<any[]>(`${this.apiBase}/chat/${order.deliveryId}`)
+      .pipe(catchError(() => of([] as any[])))
+      .subscribe(msgs => {
+        this.chatMessages = msgs;
+        this.cdr.detectChanges();
+        this.scrollPorterChatToBottom();
+      });
+    this.sseService.subscribeToChat(order.deliveryId);
+  }
+
+  closePorterChat(): void {
+    if (this.chatDeliveryId) this.sseService.unsubscribeFromChat(this.chatDeliveryId);
+    this.showChat       = false;
+    this.chatDeliveryId = null;
+    this.chatOrder      = null;
+    this.chatMessages   = [];
+    this.chatInput      = '';
+  }
+
+  sendPorterChatMessage(): void {
+    const msg = this.chatInput.trim();
+    if (!msg || !this.chatDeliveryId || this.chatSending || !this.porterProfile) return;
+    this.chatSending = true;
+    const body = {
+      senderId:   String(this.porterProfile.userId),
+      senderName: this.porterProfile.name,
+      senderRole: 'PORTER',
+      message:    msg
+    };
+    this.http.post<any>(`${this.apiBase}/chat/${this.chatDeliveryId}/send`, body)
+      .pipe(catchError(() => of(null)))
+      .subscribe(saved => {
+        if (saved) this.chatMessages = [...this.chatMessages, saved];
+        this.chatInput   = '';
+        this.chatSending = false;
+        this.cdr.detectChanges();
+        this.scrollPorterChatToBottom();
+      });
+  }
+
+  onPorterChatKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendPorterChatMessage(); }
+  }
+
+  private scrollPorterChatToBottom(): void {
+    setTimeout(() => {
+      const el = this.chatScrollRef?.nativeElement;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 50);
   }
 
   logout(): void {

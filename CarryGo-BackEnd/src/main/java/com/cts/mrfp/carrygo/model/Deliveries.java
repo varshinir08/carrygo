@@ -45,6 +45,22 @@ public class Deliveries {
     private String status;
     private LocalDateTime createdAt;
 
+    // OTP & ride flow
+    private String otp;
+    private LocalDateTime arrivedAt;
+
+    // Dynamic pricing metadata
+    private Float surgeMultiplier;
+    private String surgeLabel;
+    private Float zoneSurcharge;
+    private Float timeFare;
+    private String vehicleType;
+
+    // Broadcast tracking
+    private Integer totalPool;
+    private Integer totalNotified;
+    private Integer totalRejected;
+
     public Deliveries() {}
 
     // Getters and Setters
@@ -104,4 +120,34 @@ public class Deliveries {
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getOtp()             { return otp; }
+    public void setOtp(String v)       { this.otp = v; }
+
+    public LocalDateTime getArrivedAt()        { return arrivedAt; }
+    public void setArrivedAt(LocalDateTime v)  { this.arrivedAt = v; }
+
+    public Float getSurgeMultiplier()          { return surgeMultiplier; }
+    public void setSurgeMultiplier(Float v)    { this.surgeMultiplier = v; }
+
+    public String getSurgeLabel()              { return surgeLabel; }
+    public void setSurgeLabel(String v)        { this.surgeLabel = v; }
+
+    public Float getZoneSurcharge()            { return zoneSurcharge; }
+    public void setZoneSurcharge(Float v)      { this.zoneSurcharge = v; }
+
+    public Float getTimeFare()                 { return timeFare; }
+    public void setTimeFare(Float v)           { this.timeFare = v; }
+
+    public String getVehicleType()             { return vehicleType; }
+    public void setVehicleType(String v)       { this.vehicleType = v; }
+
+    public Integer getTotalPool()              { return totalPool; }
+    public void setTotalPool(Integer v)        { this.totalPool = v; }
+
+    public Integer getTotalNotified()          { return totalNotified; }
+    public void setTotalNotified(Integer v)    { this.totalNotified = v; }
+
+    public Integer getTotalRejected()          { return totalRejected; }
+    public void setTotalRejected(Integer v)    { this.totalRejected = v; }
 }

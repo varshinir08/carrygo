@@ -39,6 +39,12 @@
         </svg>
         <span>Profile</span>
       </a>
+      <a class="nav-item" (click)="goToUserDashboard()" style="margin-top:auto; border-top:1px solid rgba(255,255,255,0.12); padding-top:12px;">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        <span>Switch to User Mode</span>
+      </a>
     </nav>
   </aside>
 
@@ -188,8 +194,12 @@
             <div class="order-card-header">
               <span class="order-id">#ORD-{{ order.deliveryId }}</span>
               <div class="order-header-right">
+                <span class="order-status-badge" [ngClass]="{
+                  'badge-accepted':  order.status === 'ACCEPTED',
+                  'badge-arrived':   order.status === 'ARRIVED_AT_PICKUP',
+                  'badge-pickedup':  order.status === 'PICKED_UP'
+                }">{{ getStatusLabel(order.status) }}</span>
                 <span class="order-amount">&#8377;{{ order.totalAmount | number:'1.0-0' }}</span>
-                <!-- small nav icon — secondary action -->
                 <button class="nav-icon-btn" (click)="openNavMap(order)" title="Open map">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
@@ -198,19 +208,26 @@
               </div>
             </div>
 
-            <!-- 3-step progress stepper -->
+            <!-- 4-step progress stepper -->
             <div class="order-stepper">
               <div class="step done">
                 <div class="step-dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg></div>
                 <span>Accepted</span>
               </div>
+              <div class="step-line" [class.done]="isArrived(order) || isPickedUp(order)"></div>
+              <div class="step" [class.done]="isPickedUp(order)" [class.active]="isArrived(order)">
+                <div class="step-dot">
+                  <svg *ngIf="isPickedUp(order)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <span>At Pickup</span>
+              </div>
               <div class="step-line" [class.done]="isPickedUp(order)"></div>
-              <div class="step" [class.done]="isPickedUp(order)" [class.active]="!isPickedUp(order)">
+              <div class="step" [class.done]="false" [class.active]="isPickedUp(order)">
                 <div class="step-dot"></div>
                 <span>Picked Up</span>
               </div>
               <div class="step-line"></div>
-              <div class="step" [class.active]="isPickedUp(order)">
+              <div class="step">
                 <div class="step-dot"></div>
                 <span>Delivered</span>
               </div>
@@ -241,16 +258,58 @@
               <span class="dist-chip" *ngIf="order.distanceKm">{{ order.distanceKm | number:'1.1-1' }} km</span>
             </div>
 
+            <!-- ── OTP Panel (Feature 4) — shown when porter taps "Enter OTP" ── -->
+            <div class="otp-panel" *ngIf="showOtpPanel && otpOrderId === order.deliveryId">
+              <div class="otp-panel-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" width="16" height="16">
+                  <rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 118 0v4"/>
+                </svg>
+                Enter OTP from sender
+              </div>
+              <div class="otp-boxes">
+                <input #otpInput
+                       *ngFor="let digit of otpDigits; let i = index"
+                       class="otp-box" type="text" inputmode="numeric"
+                       autocomplete="off" pattern="[0-9]*"
+                       maxlength="1"
+                       [value]="otpDigits[i]"
+                       (input)="onOtpInput($event, i)"
+                       (keydown.backspace)="onOtpBackspace($event, i)"/>
+              </div>
+              <div class="otp-error" *ngIf="otpError">{{ otpError }}</div>
+              <div class="otp-actions">
+                <button class="otp-cancel-btn" (click)="cancelOtp()">Cancel</button>
+                <button class="otp-submit-btn"
+                        [disabled]="otpDigits.join('').length !== 4 || otpSubmitting"
+                        (click)="submitOtp()">
+                  <span *ngIf="otpSubmitting" class="otp-spinner"></span>
+                  {{ otpSubmitting ? 'Verifying…' : 'Verify & Start Ride' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Chat button — available once order is accepted -->
+            <button class="porter-chat-btn"
+                    *ngIf="!showOtpPanel || otpOrderId !== order.deliveryId"
+                    (click)="openPorterChat(order)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+              </svg>
+              Chat with Sender
+            </button>
+
             <!-- Single contextual action button -->
             <button class="action-btn progress-btn"
-                    [class.pickup-done-btn]="!isPickedUp(order)"
-                    [class.deliver-btn]="isPickedUp(order)"
+                    *ngIf="!(showOtpPanel && otpOrderId === order.deliveryId)"
+                    [class.pickup-done-btn]="order.status !== 'PICKED_UP'"
+                    [class.deliver-btn]="order.status === 'PICKED_UP'"
                     (click)="nextAction(order)">
-              <svg *ngIf="!isPickedUp(order)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-              </svg>
-              <svg *ngIf="isPickedUp(order)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
-                <polyline points="20 6 9 17 4 12"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+                <path *ngIf="order.status === 'ACCEPTED'" stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <circle *ngIf="order.status === 'ACCEPTED'" cx="12" cy="11" r="3"/>
+                <rect *ngIf="order.status === 'ARRIVED_AT_PICKUP'" x="5" y="11" width="14" height="10" rx="2"/>
+                <path *ngIf="order.status === 'ARRIVED_AT_PICKUP'" d="M8 11V7a4 4 0 118 0v4"/>
+                <polyline *ngIf="order.status === 'PICKED_UP'" points="20 6 9 17 4 12"/>
               </svg>
               {{ getActionLabel(order) }}
             </button>
@@ -347,6 +406,100 @@
   </div>
 </div>
 
+<!-- ═══════════════════════ RIDE REQUEST POPUP (Feature 3) ═══════════════════════ -->
+<div class="ride-popup-overlay" *ngIf="showRequestPopup" (click)="handleRejectPopup()">
+  <div class="ride-popup-sheet" (click)="$event.stopPropagation()">
+
+    <!-- Drag handle -->
+    <div class="popup-drag-handle"></div>
+
+    <!-- Header row: label + SVG countdown -->
+    <div class="popup-header">
+      <div class="popup-header-left">
+        <span class="popup-new-badge">NEW REQUEST</span>
+        <span class="popup-amount">&#8377;{{ incomingRequest?.totalAmount | number:'1.0-0' }}</span>
+        <span class="popup-dist" *ngIf="incomingRequest?.distanceKm">
+          · {{ incomingRequest!.distanceKm | number:'1.1-1' }} km
+        </span>
+      </div>
+
+      <!-- SVG circular countdown -->
+      <div class="popup-countdown-wrap">
+        <svg class="popup-countdown-svg" viewBox="0 0 64 64" width="64" height="64">
+          <!-- background track -->
+          <circle cx="32" cy="32" r="26" fill="none" stroke="#f1f5f9" stroke-width="5"/>
+          <!-- progress arc -->
+          <circle cx="32" cy="32" r="26" fill="none"
+                  [attr.stroke]="countdown <= 5 ? '#ef4444' : countdown <= 10 ? '#f59e0b' : '#2563eb'"
+                  stroke-width="5"
+                  stroke-linecap="round"
+                  [attr.stroke-dasharray]="countdownCircumference"
+                  [attr.stroke-dashoffset]="countdownDash"
+                  transform="rotate(-90 32 32)"/>
+          <!-- number -->
+          <text x="32" y="37" text-anchor="middle" font-size="18" font-weight="700"
+                [attr.fill]="countdown <= 5 ? '#ef4444' : countdown <= 10 ? '#f59e0b' : '#2563eb'"
+                font-family="Inter,system-ui,sans-serif">{{ countdown }}</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Surge badge if applicable -->
+    <div class="popup-surge-badge" *ngIf="incomingRequest?.surgeMultiplier && incomingRequest!.surgeMultiplier! > 1.0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+      {{ incomingRequest?.surgeLabel || 'Surge Pricing' }} · {{ incomingRequest?.surgeMultiplier }}x
+    </div>
+
+    <!-- Addresses -->
+    <div class="popup-route">
+      <div class="popup-route-row">
+        <span class="popup-dot green-dot"></span>
+        <div class="popup-route-detail">
+          <span class="popup-route-label">Pickup</span>
+          <span class="popup-route-addr">{{ incomingRequest?.pickupAddress }}</span>
+        </div>
+      </div>
+      <div class="popup-route-line"></div>
+      <div class="popup-route-row">
+        <span class="popup-dot red-dot"></span>
+        <div class="popup-route-detail">
+          <span class="popup-route-label">Drop</span>
+          <span class="popup-route-addr">{{ incomingRequest?.dropAddress }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Package info -->
+    <div class="popup-meta" *ngIf="incomingRequest?.packageType">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" width="14" height="14">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+        <circle cx="12" cy="10" r="3"/>
+      </svg>
+      {{ incomingRequest?.packageType }}
+      <span *ngIf="incomingRequest?.vehicleType">&nbsp;·&nbsp;{{ incomingRequest?.vehicleType }}</span>
+    </div>
+
+    <!-- Accept / Reject -->
+    <div class="popup-actions">
+      <button class="popup-reject-btn" (click)="handleRejectPopup()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Decline
+      </button>
+      <button class="popup-accept-btn" (click)="handleAcceptPopup()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Accept Ride
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <!-- ═══════════════════════ NAV MAP MODAL ═══════════════════════ -->
 <div class="modal-overlay" *ngIf="showNavMap" (click)="closeNavMap()">
   <div class="nav-map-box" (click)="$event.stopPropagation()">
@@ -403,8 +556,8 @@
         </svg>
         Open in Maps
       </button>
-      <button class="nav-picked-btn" (click)="markPickedUp(navOrder!); closeNavMap()">
-        Picked Up ✓
+      <button class="nav-picked-btn" (click)="nextAction(navOrder!); closeNavMap()">
+        {{ getActionLabel(navOrder!) }}
       </button>
     </div>
   </div>
@@ -510,5 +663,61 @@
         {{ withdrawing ? 'Processing…' : 'Withdraw ₹' + (withdrawAmount || '0') }}
       </button>
     </ng-container>
+  </div>
+</div>
+
+<!-- ════════ PORTER CHAT WINDOW ════════ -->
+<div class="chat-window" *ngIf="showChat">
+  <div class="chat-header">
+    <div class="chat-header-info">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+      </svg>
+      <span>Chat with Sender</span>
+      <span class="chat-order-id" *ngIf="chatOrder">#{{ chatOrder.deliveryId }}</span>
+    </div>
+    <button class="chat-close-btn" (click)="closePorterChat()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="chat-messages" #chatScroll>
+    <div *ngIf="chatMessages.length === 0" class="chat-empty">
+      <svg width="32" height="32" fill="none" stroke="#cbd5e1" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+      </svg>
+      <p>No messages yet. Start the conversation!</p>
+    </div>
+
+    <div *ngFor="let m of chatMessages"
+         class="chat-bubble-wrap"
+         [class.mine]="m.senderRole === 'PORTER'"
+         [class.theirs]="m.senderRole === 'USER'">
+      <div class="chat-bubble">
+        <div class="chat-bubble-msg">{{ m.message }}</div>
+        <div class="chat-bubble-meta">
+          {{ m.senderRole === 'PORTER' ? 'You' : m.senderName }}
+          · {{ m.sentAt | date:'HH:mm' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-input-row">
+    <input class="chat-input"
+           placeholder="Type a message…"
+           [(ngModel)]="chatInput"
+           (keydown)="onPorterChatKeydown($event)"
+           [disabled]="chatSending"
+           maxlength="500"/>
+    <button class="chat-send-btn"
+            [disabled]="!chatInput.trim() || chatSending"
+            (click)="sendPorterChatMessage()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+      </svg>
+    </button>
   </div>
 </div>

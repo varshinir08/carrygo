@@ -7,15 +7,34 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { NotificationsService, AppNotification } from '../services/notifications.service';
 import { Delivery } from '../services/delivery/delivery';
 import { Wallet } from '../services/wallet/wallet';
 import { UserService } from '../services/user-service';
 import { MapPickerComponent, MapPickerResult } from '../map-picker/map-picker';
+import { FareService, FareEstimate } from '../services/fare.service';
+import { SseService } from '../services/sse.service';
 import { forkJoin, interval, Subscription } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { switchMap } from 'rxjs/operators';
+import { catchError, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
+
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+interface ChatMsg {
+  id: number;
+  deliveryId: number;
+  senderId: number;
+  senderName: string;
+  senderRole: string;
+  message: string;
+  sentAt: string;
+}
 
 const TXN_KEY = 'carrygo_wallet_txns';
 
@@ -30,6 +49,7 @@ interface WalletTxn {
 
 type ActiveSection = 'home' | 'deliveries' | 'wallet' | 'services';
 type PackageType   = 'documents' | 'electronics' | 'clothing' | 'fragile' | 'food' | 'other';
+type BookingStep   = 'idle' | 'estimated' | 'confirming-surge' | 'booked';
 
 @Component({
   selector: 'app-user-dashboard',
@@ -60,16 +80,36 @@ export class UserDashboard implements OnInit, OnDestroy {
   receiverName         = '';
   receiverPhone        = '';
   specialInstructions  = '';
+  vehicleType          = 'auto';
 
-  /* ── Price estimate ── */
+  readonly vehicleTypes = [
+    { id: 'bike',  label: 'Bike',  icon: '🏍️' },
+    { id: 'auto',  label: 'Auto',  icon: '🛺' },
+    { id: 'mini',  label: 'Mini',  icon: '🚗' },
+    { id: 'sedan', label: 'Sedan', icon: '🚙' },
+    { id: 'suv',   label: 'SUV',   icon: '🚐' },
+  ];
+
+  /* ── Fare estimate (Feature 1) ── */
   showPriceCard   = false;
+  fareEstimate:   FareEstimate | null = null;
+  fareLoading     = false;
+  fareError       = '';
+  locationError   = '';
   estimatedDist   = 0;
   estimatedPrice  = 0;
   basePrice       = 0;
   distanceCost    = 0;
   serviceFee      = 0;
   isSubmitting    = false;
-  bookingStep: 'idle' | 'estimated' | 'booked' = 'idle';
+  bookingStep: BookingStep = 'idle';
+
+  /* ── Surge confirmation (Feature 1) ── */
+  showSurgeConfirm = false;
+
+  /* ── Broadcast progress bar (Feature 5) ── */
+  broadcastState: any = null;
+  activeBookingId: number | null = null;
 
   /* ── Map picker ── */
   showMapPicker = false;
@@ -112,8 +152,9 @@ export class UserDashboard implements OnInit, OnDestroy {
   notifications: AppNotification[] = [];
   unreadCount = 0;
 
-  /* ── Polling ── */
+  /* ── Polling & SSE ── */
   private pollSub?: Subscription;
+  private sseSub?: Subscription;
   private pollInterval: any;
 
   /* ── Package options ── */
@@ -126,8 +167,38 @@ export class UserDashboard implements OnInit, OnDestroy {
     { value: 'other',       label: 'Other',       icon: '📦' },
   ];
 
+  /* ── Delivery detail drawer ── */
+  showDeliveryDetail = false;
+  selectedDelivery: any = null;
+
   /* ── Porter verification ── */
   isCheckingPorter = false;
+
+  /* ── Address autocomplete ── */
+  pickupSuggestions: NominatimResult[] = [];
+  dropSuggestions:   NominatimResult[] = [];
+  showPickupSugg = false;
+  showDropSugg   = false;
+  private pickupDebounce: any = null;
+  private dropDebounce:   any = null;
+
+  /* ── Chat window ── */
+  showChat        = false;
+  chatDeliveryId: number | null = null;
+  chatDelivery:   any = null;
+  chatMessages:   ChatMsg[] = [];
+  chatInput       = '';
+  chatSending     = false;
+  @ViewChild('chatScroll') chatScrollRef?: ElementRef<HTMLElement>;
+  @ViewChild('inlineMapEl') inlineMapElRef?: ElementRef<HTMLDivElement>;
+
+  /* ── Inline route map ── */
+  inlineRouteDist = '';
+  inlineRouteDur  = '';
+  private inlineMapInstance: any = null;
+  private leafletLib: any = null;
+
+  private readonly apiBase = 'http://localhost:8081/api';
 
   constructor(
     private authService:          AuthService,
@@ -135,6 +206,9 @@ export class UserDashboard implements OnInit, OnDestroy {
     private walletService:        Wallet,
     private userService:          UserService,
     private notificationsService: NotificationsService,
+    private fareService:          FareService,
+    private sseService:           SseService,
+    private http:                 HttpClient,
     private cdr:                  ChangeDetectorRef,
     private router:               Router,
     @Inject(PLATFORM_ID) private platformId: Object,
@@ -149,7 +223,7 @@ export class UserDashboard implements OnInit, OnDestroy {
       this.loadTxns();
       this.loadNotifications();
       this.startPolling();
-      // Start polling for notifications and deliveries every 20 seconds
+      this.connectSse();
       this.pollInterval = setInterval(() => {
         this.loadNotifications();
         this.loadData();
@@ -159,7 +233,43 @@ export class UserDashboard implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.pollSub?.unsubscribe();
+    this.sseSub?.unsubscribe();
+    this.sseService.disconnect();
     if (this.pollInterval) clearInterval(this.pollInterval);
+    clearTimeout(this.pickupDebounce);
+    clearTimeout(this.dropDebounce);
+    this.inlineMapInstance?.remove();
+  }
+
+  /* ── SSE (Feature 5) ─────────────────────────────────────────────────── */
+
+  connectSse(): void {
+    if (!isPlatformBrowser(this.platformId) || !this.user?.userId) return;
+    this.sseSub = this.sseService.connect(this.user.userId).subscribe({
+      next: ({ event, data }) => {
+        if (event === 'broadcastUpdate') {
+          this.broadcastState  = data;
+          this.activeBookingId = data.deliveryId ?? this.activeBookingId;
+          if (data.status === 'accepted') {
+            this.bookingStep = 'booked';
+            this.loadData();
+          } else if (this.bookingStep !== 'booked') {
+            this.bookingStep = 'booked';
+          }
+          this.cdr.detectChanges();
+        }
+        if (event === 'statusUpdate') {
+          this.loadData();
+        }
+        if (event === 'chatMessage' && this.showChat && data.deliveryId === this.chatDeliveryId) {
+          if (!this.chatMessages.some((m: ChatMsg) => m.id === data.id)) {
+            this.chatMessages = [...this.chatMessages, data];
+            this.cdr.detectChanges();
+            this.scrollChatToBottom();
+          }
+        }
+      }
+    });
   }
 
   /* ─────────────── Helpers ─────────────── */
@@ -179,13 +289,37 @@ export class UserDashboard implements OnInit, OnDestroy {
   loadData(): void {
     if (!this.user.userId) return;
     forkJoin({
-      deliveries: this.deliveryService.getUserDeliveries(this.user.userId),
-      wallet:     this.walletService.getWalletByUserId(this.user.userId),
+      deliveries: this.deliveryService.getUserDeliveries(this.user.userId)
+                    .pipe(catchError(() => of([]))),
+      wallet:     this.walletService.getWalletByUserId(this.user.userId)
+                    .pipe(catchError(() => of({ balance: 0 }))),
     }).subscribe({
       next: ({ deliveries, wallet }) => {
         this.deliveries = [...deliveries].reverse();
         this.wallet     = wallet;
         this.extractRecentLocations(deliveries);
+        // Bug 3 fix: restore broadcast bar after reload if there's an active PENDING order
+        if (this.bookingStep !== 'booked') {
+          const pending = deliveries.find((d: any) =>
+            (d.status || '').toUpperCase() === 'PENDING');
+          if (pending) {
+            this.bookingStep     = 'booked';
+            this.activeBookingId = pending.deliveryId ?? null;
+            if (!this.broadcastState) {
+              this.broadcastState = {
+                status:          'searching',
+                deliveryId:      pending.deliveryId,
+                totalPool:       pending.totalPool       ?? 0,
+                totalNotified:   pending.totalNotified   ?? 0,
+                rejected:        pending.totalRejected   ?? 0,
+                pending:         Math.max(0, (pending.totalNotified ?? 0) - (pending.totalRejected ?? 0)),
+                progressPercent: pending.totalNotified
+                  ? Math.round((pending.totalNotified * 100) / Math.max(pending.totalPool ?? 1, 1))
+                  : 0,
+              };
+            }
+          }
+        }
         this.cdr.detectChanges();
       },
       error: err => console.error('Data load error', err),
@@ -241,56 +375,87 @@ export class UserDashboard implements OnInit, OnDestroy {
     });
   }
 
-  getPorterForDelivery(d: any): { name: string; phone: string; vehicle: string } | null {
-    if (!['ACCEPTED', 'PICKED_UP', 'DELIVERED'].includes((d.status || '').toUpperCase())) return null;
-    if (!d.commuterName) return null;
-    return { name: d.commuterName, phone: d.commuterPhone || '', vehicle: d.commuterVehicle || '' };
-  }
-
   /* ─────────────── Map picker ─────────────── */
 
   openMapPicker(): void  { this.showMapPicker = true; }
   closeMapPicker(): void { this.showMapPicker = false; }
 
   onMapConfirm(result: MapPickerResult): void {
-    this.showMapPicker   = false;
-    this.pickupAddress   = result.pickupAddress;
-    this.pickupLat       = result.pickupLat;
-    this.pickupLng       = result.pickupLng;
-    this.dropAddress     = result.dropAddress;
-    this.dropLat         = result.dropLat;
-    this.dropLng         = result.dropLng;
-    this.estimatedDist   = result.distanceKm;
-
-    // Fixed ₹50 flat rate
-    this.basePrice      = 50;
-    this.distanceCost   = 0;
-    this.serviceFee     = 0;
-    this.estimatedPrice = 50;
-    this.showPriceCard  = true;
-    this.bookingStep    = 'estimated';
-    this.cdr.detectChanges();
+    this.showMapPicker = false;
+    this.locationError = '';
+    this.pickupAddress = result.pickupAddress;
+    this.pickupLat     = result.pickupLat;
+    this.pickupLng     = result.pickupLng;
+    this.dropAddress   = result.dropAddress;
+    this.dropLat       = result.dropLat;
+    this.dropLng       = result.dropLng;
+    this.estimatedDist = result.distanceKm;
+    this.fetchFareEstimate(result.pickupLat, result.pickupLng, result.dropLat, result.dropLng);
+    this.renderInlineMap();
   }
 
-  /* ─────────────── Manual price estimation ─────────────── */
+  /* ─────────────── Fare estimation (Feature 1) ─────────────── */
 
-  estimatePrice(): void {
+  private fetchFareEstimate(pLat: number, pLng: number, dLat: number, dLng: number): void {
+    this.fareLoading  = true;
+    this.fareError    = '';
+    this.fareEstimate = null;
+    this.cdr.detectChanges();
+    this.fareService.estimate(pLat, pLng, dLat, dLng, this.vehicleType)
+      .pipe(catchError(err => {
+        console.error('Fare API error', err);
+        return of(null);
+      }))
+      .subscribe({
+        next: (est) => {
+          this.fareLoading = false;
+          if (est) {
+            this.fareEstimate   = est;
+            this.estimatedDist  = est.distanceKm;
+            this.basePrice      = est.baseFare;
+            this.distanceCost   = est.distanceFare;
+            this.serviceFee     = est.timeFare + est.zoneSurcharge;
+            this.estimatedPrice = est.totalFare;
+            this.fareError      = '';
+            this.showPriceCard  = true;
+            this.bookingStep    = 'estimated';
+          } else {
+            this.fareError   = 'Could not reach fare server. Check your connection and try again.';
+            this.showPriceCard = false;
+            this.bookingStep   = 'idle';
+          }
+          this.cdr.detectChanges();
+        }
+      });
+  }
+
+  async estimatePrice(): Promise<void> {
+    this.locationError = '';
     if (!this.pickupAddress.trim() || !this.dropAddress.trim()) return;
 
-    if (this.pickupLat !== undefined && this.dropLat !== undefined) {
-      // Use Haversine if we have coordinates from map
-      const dist = this.haversineKm(this.pickupLat, this.pickupLng!, this.dropLat, this.dropLng!);
-      this.estimatedDist = Math.round(dist * 10) / 10;
-    } else {
-      // Fallback pseudo-distance from string hashing
-      const a = (this.pickupAddress + this.dropAddress).toLowerCase();
-      let hash = 0;
-      for (let i = 0; i < a.length; i++) hash = ((hash << 5) - hash + a.charCodeAt(i)) | 0;
-      this.estimatedDist = 2 + (Math.abs(hash) % 280) / 10;
-      this.estimatedDist = Math.round(this.estimatedDist * 10) / 10;
+    // Auto-geocode any unresolved address before proceeding
+    if (this.pickupLat === undefined) {
+      const c = await this.geocodeSingle(this.pickupAddress);
+      if (c) { this.pickupLat = c.lat; this.pickupLng = c.lng; }
+    }
+    if (this.dropLat === undefined) {
+      const c = await this.geocodeSingle(this.dropAddress);
+      if (c) { this.dropLat = c.lat; this.dropLng = c.lng; }
     }
 
-    // Fixed ₹50 flat rate
+    if (this.pickupLat !== undefined && this.dropLat !== undefined) {
+      this.fetchFareEstimate(this.pickupLat, this.pickupLng!, this.dropLat, this.dropLng!);
+      this.renderInlineMap();
+      return;
+    }
+
+    // Still no coordinates — open map picker as last resort
+    this.locationError = 'Could not find those addresses. Please pin locations on the map.';
+    this.showMapPicker = true;
+    this.cdr.detectChanges();
+  }
+
+  private applyFallbackFare(): void {
     this.basePrice      = 50;
     this.distanceCost   = 0;
     this.serviceFee     = 0;
@@ -300,15 +465,29 @@ export class UserDashboard implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  private haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  onVehicleTypeChange(): void {
+    // Re-fetch fare if coordinates are already available
+    if (this.pickupLat !== undefined && this.dropLat !== undefined) {
+      this.fetchFareEstimate(this.pickupLat, this.pickupLng!, this.dropLat, this.dropLng!);
+    }
+  }
+
+  /* ── Surge confirmation dialog ── */
+  get hasSurge(): boolean {
+    return !!(this.fareEstimate?.hasSurge && (this.fareEstimate?.surgeMultiplier ?? 1) > 1.3);
+  }
+
+  openSurgeConfirm(): void  { this.showSurgeConfirm = true; }
+  cancelSurgeConfirm(): void { this.showSurgeConfirm = false; }
+
+  confirmSurgeAndBook(): void {
+    this.showSurgeConfirm = false;
+    this.bookDelivery();
+  }
+
+  onBookClick(): void {
+    if (this.hasSurge) { this.openSurgeConfirm(); return; }
+    this.bookDelivery();
   }
 
   /* ─────────────── Book delivery ─────────────── */
@@ -332,20 +511,25 @@ export class UserDashboard implements OnInit, OnDestroy {
       receiverName:        this.receiverName         || '',
       receiverPhone:       this.receiverPhone         || '',
       specialInstructions: this.specialInstructions   || '',
-      distanceKm:          this.estimatedDist || 5,
-      basePrice:           this.basePrice    || 40,
-      distanceCost:        this.distanceCost || 0,
-      serviceFee:          this.serviceFee   || 15,
-      totalAmount:         this.estimatedPrice || 150,
+      vehicleType:         this.vehicleType,
+      distanceKm:          this.fareEstimate?.distanceKm ?? this.estimatedDist ?? 5,
+      basePrice:           this.fareEstimate?.baseFare   ?? this.basePrice     ?? 40,
+      distanceCost:        this.fareEstimate?.distanceFare ?? this.distanceCost ?? 0,
+      serviceFee:          this.fareEstimate ? (this.fareEstimate.timeFare + this.fareEstimate.zoneSurcharge) : this.serviceFee,
+      totalAmount:         this.fareEstimate?.totalFare ?? this.estimatedPrice ?? 150,
+      surgeMultiplier:     this.fareEstimate?.surgeMultiplier ?? 1.0,
+      surgeLabel:          this.fareEstimate?.surgeLabel ?? 'Normal',
       status:              'PENDING',
       deliveryType:        'STANDARD',
     };
 
     this.deliveryService.createDelivery(payload).subscribe({
-      next: () => {
-        this.bookingStep = 'booked';
+      next: (created: any) => {
+        // Feature 5: start broadcast state while searching for porter
+        this.broadcastState  = { status: 'searching', totalPool: 0, totalNotified: 0, rejected: 0, pending: 0, progressPercent: 0 };
+        this.activeBookingId = created?.deliveryId ?? null;
+        this.bookingStep     = 'booked';
         this.saveRecentLocation(this.pickupAddress);
-        // Deduct from wallet optimistically
         const amt = this.estimatedPrice || payload.totalAmount;
         if (this.wallet.balance >= amt) {
           this.wallet.balance -= amt;
@@ -370,7 +554,26 @@ export class UserDashboard implements OnInit, OnDestroy {
     this.pickupLat = this.pickupLng = this.dropLat = this.dropLng = undefined;
     this.packageType = ''; this.weightKg = 1;
     this.receiverName = this.receiverPhone = this.specialInstructions = '';
-    this.showPriceCard = false; this.estimatedPrice = 0; this.bookingStep = 'idle';
+    this.showPriceCard = false; this.estimatedPrice = 0;
+    this.fareEstimate = null; this.fareError = ''; this.locationError = '';
+    this.bookingStep = 'idle';
+    this.broadcastState = null; this.activeBookingId = null;
+  }
+
+  isCancelling = false;
+
+  cancelBooking(): void {
+    if (!this.activeBookingId || this.isCancelling) return;
+    if (!confirm('Are you sure you want to cancel this booking?')) return;
+    this.isCancelling = true;
+    this.deliveryService.updateDeliveryStatus(this.activeBookingId, 'CANCELLED')
+      .pipe(catchError(() => of(null)))
+      .subscribe(() => {
+        this.isCancelling = false;
+        this.resetForm();
+        this.loadData();
+        this.cdr.detectChanges();
+      });
   }
 
   saveRecentLocation(addr: string): void {
@@ -384,6 +587,24 @@ export class UserDashboard implements OnInit, OnDestroy {
     if (field === 'pickup') this.pickupAddress = loc;
     else this.dropAddress = loc;
     this.showPriceCard = false; this.bookingStep = 'idle';
+  }
+
+  /* ── Broadcast helpers (Feature 5) ── */
+  get broadcastStatus(): any { return this.broadcastState?.status ?? 'searching'; }
+  get broadcastPct(): number    { return this.broadcastState?.progressPercent ?? 0; }
+  get broadcastPending(): number { return this.broadcastState?.pending ?? 0; }
+
+  /* ─────────────── Delivery detail drawer ─────────────── */
+
+  openDeliveryDetail(d: any): void {
+    this.selectedDelivery  = d;
+    this.showDeliveryDetail = true;
+    this.cdr.detectChanges();
+  }
+
+  closeDeliveryDetail(): void {
+    this.showDeliveryDetail = false;
+    this.selectedDelivery   = null;
   }
 
   /* ─────────────── Section nav ─────────────── */
@@ -404,29 +625,31 @@ export class UserDashboard implements OnInit, OnDestroy {
 
   getStatusClass(status: string): string {
     switch ((status || '').toUpperCase()) {
-      case 'PENDING':   return 'status-pending';
-      case 'ACCEPTED':  return 'status-accepted';
-      case 'PICKED_UP': return 'status-transit';
-      case 'DELIVERED': return 'status-delivered';
-      case 'CANCELLED': return 'status-cancelled';
-      default:          return 'status-pending';
+      case 'PENDING':          return 'status-pending';
+      case 'ACCEPTED':         return 'status-accepted';
+      case 'ARRIVED_AT_PICKUP': return 'status-arrived';
+      case 'PICKED_UP':        return 'status-transit';
+      case 'DELIVERED':        return 'status-delivered';
+      case 'CANCELLED':        return 'status-cancelled';
+      default:                 return 'status-pending';
     }
   }
 
   getStatusLabel(status: string): string {
     switch ((status || '').toUpperCase()) {
-      case 'PENDING':   return 'Pending';
-      case 'ACCEPTED':  return 'Accepted';
-      case 'PICKED_UP': return 'In Transit';
-      case 'DELIVERED': return 'Delivered';
-      case 'CANCELLED': return 'Cancelled';
-      default:          return status;
+      case 'PENDING':          return 'Searching';
+      case 'ACCEPTED':         return 'Porter En Route';
+      case 'ARRIVED_AT_PICKUP': return 'Porter Arrived';
+      case 'PICKED_UP':        return 'In Transit';
+      case 'DELIVERED':        return 'Delivered';
+      case 'CANCELLED':        return 'Cancelled';
+      default:                 return status;
     }
   }
 
   getActiveDeliveries(): any[] {
     return this.deliveries.filter(d =>
-      ['PENDING', 'ACCEPTED', 'PICKED_UP'].includes((d.status || '').toUpperCase())
+      ['PENDING', 'ACCEPTED', 'ARRIVED_AT_PICKUP', 'PICKED_UP'].includes((d.status || '').toUpperCase())
     );
   }
 
@@ -499,27 +722,20 @@ export class UserDashboard implements OnInit, OnDestroy {
       ? (this.selectedUpiApp ? this.upiApps.find(a => a.id === this.selectedUpiApp)?.label ?? 'UPI' : `UPI · ${this.upiId}`)
       : `Net Banking · ${this.selectedBank}`;
 
-    // Optimistic: update balance immediately
     this.wallet.balance = (this.wallet.balance || 0) + amt;
     this.addTxn({ type: 'credit', amount: amt, description: 'Added to Wallet', method: methodLabel });
     this.cdr.detectChanges();
 
-    // Simulate processing time, then show success
     setTimeout(() => {
       this.addMoneyStep = 'success';
-      // Also call backend (fire & forget)
       this.walletService.topUp(this.user.userId, amt).pipe(catchError(() => of(null))).subscribe();
       this.cdr.detectChanges();
     }, 2000);
   }
 
-  finishAddMoney(): void {
-    this.showAddMoneyModal = false;
-  }
+  finishAddMoney(): void { this.showAddMoneyModal = false; }
 
-  txnIcon(t: WalletTxn): string {
-    return t.type === 'credit' ? '↓' : '↑';
-  }
+  txnIcon(t: WalletTxn): string { return t.type === 'credit' ? '↓' : '↑'; }
 
   /* ─────────────── Profile dropdown ─────────────── */
 
@@ -533,6 +749,225 @@ export class UserDashboard implements OnInit, OnDestroy {
 
   logout(): void { this.authService.logout(); }
 
+  /* ─────────────── Address Autocomplete ─────────────── */
+
+  onPickupInput(): void {
+    this.showPriceCard = false;
+    this.bookingStep   = 'idle';
+    this.pickupLat     = undefined;
+    this.pickupLng     = undefined;
+    this.locationError = '';
+    clearTimeout(this.pickupDebounce);
+    if (this.pickupAddress.length < 3) { this.pickupSuggestions = []; this.showPickupSugg = false; return; }
+    this.pickupDebounce = setTimeout(() => this.fetchSuggestions('pickup', this.pickupAddress), 400);
+  }
+
+  onDropInput(): void {
+    this.showPriceCard = false;
+    this.bookingStep   = 'idle';
+    this.dropLat       = undefined;
+    this.dropLng       = undefined;
+    this.locationError = '';
+    clearTimeout(this.dropDebounce);
+    if (this.dropAddress.length < 3) { this.dropSuggestions = []; this.showDropSugg = false; return; }
+    this.dropDebounce = setTimeout(() => this.fetchSuggestions('drop', this.dropAddress), 400);
+  }
+
+  private async fetchSuggestions(field: 'pickup' | 'drop', query: string): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) return;
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=in&addressdetails=0`;
+      const res  = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      const data: NominatimResult[] = await res.json();
+      if (field === 'pickup') { this.pickupSuggestions = data; this.showPickupSugg = data.length > 0; }
+      else                    { this.dropSuggestions   = data; this.showDropSugg   = data.length > 0; }
+      this.cdr.detectChanges();
+    } catch {}
+  }
+
+  selectPickupSuggestion(s: NominatimResult): void {
+    this.pickupAddress = s.display_name;
+    this.pickupLat     = parseFloat(s.lat);
+    this.pickupLng     = parseFloat(s.lon);
+    this.pickupSuggestions = [];
+    this.showPickupSugg    = false;
+    if (this.dropLat !== undefined) {
+      this.fetchFareEstimate(this.pickupLat, this.pickupLng, this.dropLat!, this.dropLng!);
+      this.renderInlineMap();
+    }
+    this.cdr.detectChanges();
+  }
+
+  selectDropSuggestion(s: NominatimResult): void {
+    this.dropAddress = s.display_name;
+    this.dropLat     = parseFloat(s.lat);
+    this.dropLng     = parseFloat(s.lon);
+    this.dropSuggestions = [];
+    this.showDropSugg    = false;
+    if (this.pickupLat !== undefined) {
+      this.fetchFareEstimate(this.pickupLat!, this.pickupLng!, this.dropLat, this.dropLng);
+      this.renderInlineMap();
+    }
+    this.cdr.detectChanges();
+  }
+
+  hidePickupSugg(): void {
+    setTimeout(() => {
+      this.showPickupSugg = false;
+      if (this.pickupAddress.trim() && this.pickupLat === undefined) this.autoGeocodePickup();
+      this.cdr.detectChanges();
+    }, 150);
+  }
+
+  hideDropSugg(): void {
+    setTimeout(() => {
+      this.showDropSugg = false;
+      if (this.dropAddress.trim() && this.dropLat === undefined) this.autoGeocodeDrop();
+      this.cdr.detectChanges();
+    }, 150);
+  }
+
+  private async autoGeocodePickup(): Promise<void> {
+    const coord = await this.geocodeSingle(this.pickupAddress);
+    if (!coord) return;
+    this.pickupLat = coord.lat;
+    this.pickupLng = coord.lng;
+    if (this.dropLat !== undefined) {
+      this.fetchFareEstimate(this.pickupLat, this.pickupLng, this.dropLat, this.dropLng!);
+      this.renderInlineMap();
+    }
+    this.cdr.detectChanges();
+  }
+
+  private async autoGeocodeDrop(): Promise<void> {
+    const coord = await this.geocodeSingle(this.dropAddress);
+    if (!coord) return;
+    this.dropLat = coord.lat;
+    this.dropLng = coord.lng;
+    if (this.pickupLat !== undefined) {
+      this.fetchFareEstimate(this.pickupLat!, this.pickupLng!, this.dropLat, this.dropLng);
+      this.renderInlineMap();
+    }
+    this.cdr.detectChanges();
+  }
+
+  private async geocodeSingle(address: string): Promise<{lat: number; lng: number} | null> {
+    if (!isPlatformBrowser(this.platformId) || !address.trim()) return null;
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address.trim())}&format=json&limit=1&countrycodes=in`;
+      const data: any[] = await fetch(url, { headers: { 'Accept-Language': 'en' } }).then(r => r.json());
+      if (data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    } catch {}
+    return null;
+  }
+
+  async renderInlineMap(): Promise<void> {
+    if (!isPlatformBrowser(this.platformId)) return;
+    if (this.pickupLat === undefined || this.dropLat === undefined) return;
+
+    // Wait a tick for *ngIf to render the map container
+    await new Promise(r => setTimeout(r, 80));
+    const el = this.inlineMapElRef?.nativeElement;
+    if (!el) return;
+
+    if (!this.leafletLib) {
+      this.leafletLib = await import('leaflet');
+      delete (this.leafletLib.Icon.Default.prototype as any)._getIconUrl;
+      this.leafletLib.Icon.Default.mergeOptions({
+        iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+    }
+    const L = this.leafletLib;
+
+    this.inlineMapInstance?.remove();
+    const map = L.map(el, { zoomControl: false, attributionControl: false })
+      .setView([this.pickupLat!, this.pickupLng!], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    this.inlineMapInstance = map;
+
+    const greenDot = L.divIcon({ className: '',
+      html: `<div style="width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
+      iconSize: [12,12], iconAnchor: [6,6] });
+    const redDot = L.divIcon({ className: '',
+      html: `<div style="width:12px;height:12px;border-radius:50%;background:#ef4444;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
+      iconSize: [12,12], iconAnchor: [6,6] });
+
+    L.marker([this.pickupLat!, this.pickupLng!], { icon: greenDot }).addTo(map);
+    L.marker([this.dropLat!,   this.dropLng!],   { icon: redDot   }).addTo(map);
+    map.fitBounds([[this.pickupLat!, this.pickupLng!],[this.dropLat!, this.dropLng!]], { padding: [28,28] });
+
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${this.pickupLng},${this.pickupLat};${this.dropLng},${this.dropLat}?overview=full&geometries=geojson`;
+      const resp: any = await fetch(url).then(r => r.json());
+      if (resp.routes?.[0]) {
+        L.geoJSON(resp.routes[0].geometry, { style: { color: '#2563eb', weight: 3.5, opacity: 0.8 } }).addTo(map);
+        map.fitBounds(L.geoJSON(resp.routes[0].geometry).getBounds(), { padding: [28,28] });
+        this.inlineRouteDist = (resp.routes[0].distance / 1000).toFixed(1);
+        this.inlineRouteDur  = String(Math.round(resp.routes[0].duration / 60));
+        this.cdr.detectChanges();
+      }
+    } catch {}
+  }
+
+  /* ─────────────── Chat ─────────────── */
+
+  openChat(d: any): void {
+    this.chatDelivery   = d;
+    this.chatDeliveryId = d.deliveryId;
+    this.chatMessages   = [];
+    this.showChat       = true;
+    this.http.get<ChatMsg[]>(`${this.apiBase}/chat/${d.deliveryId}`)
+      .pipe(catchError(() => of([] as ChatMsg[])))
+      .subscribe(msgs => {
+        this.chatMessages = msgs;
+        this.cdr.detectChanges();
+        this.scrollChatToBottom();
+      });
+    this.sseService.subscribeToChat(d.deliveryId);
+  }
+
+  closeChat(): void {
+    if (this.chatDeliveryId) this.sseService.unsubscribeFromChat(this.chatDeliveryId);
+    this.showChat       = false;
+    this.chatDeliveryId = null;
+    this.chatDelivery   = null;
+    this.chatMessages   = [];
+    this.chatInput      = '';
+  }
+
+  sendChatMessage(): void {
+    const msg = this.chatInput.trim();
+    if (!msg || !this.chatDeliveryId || this.chatSending) return;
+    this.chatSending = true;
+    const body = { senderId: String(this.user.userId), senderName: this.user.name, senderRole: 'USER', message: msg };
+    this.http.post<ChatMsg>(`${this.apiBase}/chat/${this.chatDeliveryId}/send`, body)
+      .pipe(catchError(() => of(null)))
+      .subscribe(saved => {
+        if (saved) this.chatMessages = [...this.chatMessages, saved];
+        this.chatInput   = '';
+        this.chatSending = false;
+        this.cdr.detectChanges();
+        this.scrollChatToBottom();
+      });
+  }
+
+  onChatKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendChatMessage(); }
+  }
+
+  private scrollChatToBottom(): void {
+    setTimeout(() => {
+      const el = this.chatScrollRef?.nativeElement;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 50);
+  }
+
+  canChat(d: any): boolean {
+    return !!d.commuterId && ['ACCEPTED','ARRIVED_AT_PICKUP','PICKED_UP'].includes((d.status || '').toUpperCase());
+  }
+
   /* ─────────────── Commuter routing ─────────────── */
 
   isPorter(): boolean {
@@ -542,12 +977,9 @@ export class UserDashboard implements OnInit, OnDestroy {
 
   goToCommuter(): void {
     if (this.isPorter()) {
-      if (this.user?.userId) {
-        this.router.navigate(['/porter-dashboard', this.user.userId]);
-      }
+      if (this.user?.userId) this.router.navigate(['/porter-dashboard', this.user.userId]);
     } else {
       this.router.navigate(['/commuter-register']);
     }
   }
-
 }

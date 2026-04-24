@@ -104,6 +104,18 @@ public class DTOConverter {
             dto.setCommuterPhone(delivery.getCommuter().getPhone());
             dto.setCommuterVehicle(delivery.getCommuter().getVehicleType());
         }
+
+        // Dynamic pricing + OTP + broadcast fields
+        dto.setOtp(delivery.getOtp());
+        dto.setSurgeMultiplier(delivery.getSurgeMultiplier());
+        dto.setSurgeLabel(delivery.getSurgeLabel());
+        dto.setZoneSurcharge(delivery.getZoneSurcharge());
+        dto.setTimeFare(delivery.getTimeFare());
+        dto.setVehicleType(delivery.getVehicleType());
+        dto.setTotalPool(delivery.getTotalPool());
+        dto.setTotalNotified(delivery.getTotalNotified());
+        dto.setTotalRejected(delivery.getTotalRejected());
+
         return dto;
     }
 
