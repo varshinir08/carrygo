@@ -5,6 +5,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user-service';
+import { PorterStatusService } from '../services/porter-status.service';
 
 interface Delivery {
   deliveryId: number;
@@ -60,6 +61,7 @@ export class PorterDeliveriesComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private userService: UserService,
+    private statusService: PorterStatusService,
     private router: Router,
     private http: HttpClient
   ) {}
@@ -71,7 +73,8 @@ export class PorterDeliveriesComponent implements OnInit {
     this.userService.getPorterProfileByEmail(email).subscribe({
       next: (profile: PorterProfile) => {
         this.porterProfile = profile;
-        this.isOnline = profile.isOnline ?? false;
+        this.statusService.init(profile.userId, profile.isOnline ?? false);
+        this.isOnline = this.statusService.isOnline;
         this.generateInitials(profile.name);
         this.loadWallet(profile.userId);
         this.loadDeliveries(profile.userId);
@@ -191,13 +194,28 @@ export class PorterDeliveriesComponent implements OnInit {
   toggleStatus(): void {
     if (!this.porterProfile || this.isToggling) return;
     this.isToggling = true;
-    const next = !this.isOnline;
-    this.isOnline = next;
-    this.statusToast = next ? "You're now Online" : "You went Offline";
+    const newStatus = !this.isOnline;
+    const previousStatus = this.isOnline;
+    this.isOnline = newStatus;
+    if (this.porterProfile) this.porterProfile.isOnline = newStatus;
+    this.statusService.set(newStatus);
+    this.statusToast = this.isOnline ? "You're now Online" : "You went Offline";
     setTimeout(() => { this.isToggling = false; }, 600);
     setTimeout(() => { this.statusToast = ''; }, 2800);
-    this.userService.updatePorterStatus(this.porterProfile.userId, next).subscribe({
-      error: () => { this.isOnline = !next; }
+    this.userService.updatePorterStatus(this.porterProfile.userId, this.isOnline).subscribe({
+      next: (response) => {
+        if (response) {
+          this.porterProfile = response;
+          this.isOnline = response.isOnline ?? newStatus;
+          this.statusService.set(this.isOnline);
+        }
+      },
+      error: () => {
+        this.isOnline = previousStatus;
+        if (this.porterProfile) this.porterProfile.isOnline = previousStatus;
+        this.statusService.set(previousStatus);
+        this.statusToast = 'Failed to update status';
+      }
     });
   }
 
@@ -215,6 +233,7 @@ export class PorterDeliveriesComponent implements OnInit {
   }
 
   logout(): void {
+    this.statusService.reset();
     this.authService.logout();
     this.router.navigate(['/login']);
   }

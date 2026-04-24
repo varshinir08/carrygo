@@ -514,21 +514,21 @@
 /* Stats row */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
 }
 
 .stat-chip {
   background: #fff;
   border-radius: 12px;
-  padding: 14px 10px;
+  padding: 14px 12px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
-.stat-num { display: block; font-size: 18px; font-weight: 700; color: #1a1a1a; }
+.stat-num { display: block; font-size: 20px; font-weight: 700; color: #1a1a1a; }
 .stat-num.orange { color: #2563eb; }
 .stat-num.green  { color: #16a34a; }
-.stat-lbl { font-size: 11px; color: #888; }
+.stat-lbl { font-size: 12px; color: #888; margin-top: 2px; }
 
 /* Quick Actions */
 .quick-actions {
@@ -610,12 +610,18 @@
 
 .track-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 6px;
   padding: 10px 12px;
   background: #f9f9f7;
   border-radius: 10px;
-  gap: 10px;
+}
+
+.track-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .track-route {
@@ -631,7 +637,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   color: #444;
-  max-width: 90px;
+  max-width: 85px;
 }
 
 /* ════════════════════ STATUS BADGES ════════════════════ */
@@ -1515,7 +1521,7 @@
    ══════════════════════════════════════════════════════════════ */
 .track-otp-row {
   display: flex; align-items: center; gap: 6px; width: 100%;
-  margin-top: 6px; padding: 6px 10px;
+  padding: 6px 10px;
   background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px;
   font-size: 0.78rem;
 }
@@ -1541,7 +1547,7 @@
 .track-otp-urgent { background: #fdf4ff !important; border-color: #a855f7 !important; }
 .track-porter-strip {
   display: flex; align-items: center; gap: 5px; width: 100%;
-  margin-top: 5px; font-size: 0.74rem; color: #2563eb;
+  font-size: 0.74rem; color: #2563eb;
 }
 .track-porter-name { font-weight: 600; }
 .track-porter-phone { color: #64748b; }

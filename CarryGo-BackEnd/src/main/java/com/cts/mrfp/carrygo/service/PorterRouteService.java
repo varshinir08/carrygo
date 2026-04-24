@@ -46,7 +46,7 @@ public class PorterRouteService {
                                     Float pickupLat, Float pickupLng,
                                     Float dropLat,   Float dropLng) {
         if (route.getFromLat() == null || route.getToLat() == null) return false;
-        double threshold = 5.0; // 5 km
+        double threshold = 3.0; // 3 km radius
         double fromDist = haversine(route.getFromLat(), route.getFromLng(), pickupLat, pickupLng);
         double toDist   = haversine(route.getToLat(),   route.getToLng(),   dropLat,   dropLng);
         return fromDist <= threshold && toDist <= threshold;

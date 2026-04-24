@@ -492,10 +492,22 @@ export class UserDashboard implements OnInit, OnDestroy {
 
   /* ─────────────── Book delivery ─────────────── */
 
+  bookingError = '';
+
   bookDelivery(): void {
     if (this.isSubmitting || !this.user.userId) return;
     if (!this.pickupAddress.trim() || !this.dropAddress.trim()) return;
 
+    const amountToPay = this.fareEstimate?.totalFare ?? this.estimatedPrice ?? 0;
+    const walletBalance = Number(this.wallet?.balance ?? 0);
+    if (walletBalance < amountToPay) {
+      const needed = Math.ceil(amountToPay - walletBalance);
+      this.bookingError = `Insufficient wallet balance. You need ₹${needed} more to book this delivery.`;
+      this.openAddMoney();
+      return;
+    }
+
+    this.bookingError = '';
     this.isSubmitting = true;
 
     const payload: any = {
@@ -536,13 +548,14 @@ export class UserDashboard implements OnInit, OnDestroy {
           this.addTxn({ type: 'debit', amount: amt, description: `Delivery · ${this.dropAddress.slice(0, 30)}`, method: 'CarryGo Wallet' });
           this.walletService.deduct(this.user.userId, amt).pipe(catchError(() => of(null))).subscribe();
         }
+        this.bookingError = '';
         this.loadData();
         this.isSubmitting = false;
         this.cdr.detectChanges();
       },
       error: err => {
         console.error('Create delivery error', err);
-        alert('Failed to book delivery. Please try again.');
+        this.bookingError = 'Failed to book delivery. Please try again.';
         this.isSubmitting = false;
         this.cdr.detectChanges();
       },
@@ -748,6 +761,19 @@ export class UserDashboard implements OnInit, OnDestroy {
   }
 
   logout(): void { this.authService.logout(); }
+
+  get isAlreadyCommuter(): boolean {
+    const role = (this.user?.role ?? '').toLowerCase();
+    return role.split(',').map((r: string) => r.trim()).some((r: string) => r === 'porter' || r === 'commuter');
+  }
+
+  goToPorterDashboard(): void {
+    this.router.navigate(['/porter-dashboard', this.user.userId]);
+  }
+
+  goToBecomeCommuter(): void {
+    this.router.navigate(['/commuter-register', this.user.userId]);
+  }
 
   /* ─────────────── Address Autocomplete ─────────────── */
 

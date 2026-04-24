@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NgIf } from '@angular/common';
 import { AuthService } from '../services/auth.service';
 
@@ -23,7 +23,7 @@ user = {
   agree: false
 };
 
-constructor(private authService: AuthService) {}
+constructor(private authService: AuthService, private router: Router) {}
 
   onSubmit() {
     if (this.user.password !== this.user.confirmPassword) {
@@ -35,9 +35,23 @@ constructor(private authService: AuthService) {}
       return;
     }
 
-    this.authService.register(this.user).subscribe({
-      next: () => alert('Registration successful'),
-      error: () => alert('Registration failed')
+    const payload = {
+      name: this.user.name.trim(),
+      email: this.user.email.trim(),
+      phone: `${this.user.countryCode}${this.user.phone.trim()}`,
+      password: this.user.password,
+      role: this.user.role
+    };
+
+    this.authService.register(payload).subscribe({
+      next: () => {
+        alert('Registration successful');
+        this.router.navigate(['/login']);
+      },
+      error: (err) => {
+        console.error('Registration failed', err);
+        alert(err?.error || 'Registration failed');
+      }
     });
   }
 }

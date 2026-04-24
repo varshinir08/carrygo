@@ -50,8 +50,10 @@ public class DeliveriesService {
 
         DeliveriesDTO savedDTO = DTOConverter.convertDeliveriesToDTO(saved);
 
-        // Broadcast new ride request to ALL connected porters via WebSocket topic
-        wsService.pushToPorters("rideRequest", savedDTO);
+        // Send new ride request only to matched porters via their personal WebSocket channel
+        for (Users porter : matchingPorters) {
+            wsService.push(porter.getUserId(), "rideRequest", savedDTO);
+        }
 
         // Persist DB notifications for matched porters (catch-up for offline porters)
         for (Users porter : matchingPorters) {
@@ -88,14 +90,13 @@ public class DeliveriesService {
 
         List<Users> routeMatched = available.stream().filter(porter -> {
             List<PorterRoute> routes = routeRepo.findByPorterUserId(porter.getUserId());
-            if (routes.isEmpty()) return true;
-            return routes.stream().anyMatch(r ->
+            return !routes.isEmpty() && routes.stream().anyMatch(r ->
                 routeService.matchesDelivery(r,
                     delivery.getPickupLat(), delivery.getPickupLng(),
                     delivery.getDropLat(),   delivery.getDropLng()));
         }).collect(Collectors.toList());
 
-        return routeMatched.isEmpty() ? available : routeMatched;
+        return routeMatched;
     }
 
     private boolean hasActiveDelivery(Integer porterId) {
@@ -234,6 +235,15 @@ public class DeliveriesService {
                 Map.of("status", "accepted", "commuterName", commuter.getName(),
                        "deliveryId", deliveryId));
         }
+
+        // Inform other porters who were notified for this route that the order is no longer available.
+        List<Users> matchingPorters = findMatchingPorters(d);
+        for (Users porter : matchingPorters) {
+            if (porter.getUserId().equals(commuterId)) continue;
+            wsService.push(porter.getUserId(), "rideTaken",
+                Map.of("deliveryId", deliveryId, "commuterName", commuter.getName()));
+        }
+
         return saved;
     }
 

@@ -8,6 +8,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user-service';
+import { PorterStatusService } from '../services/porter-status.service';
 
 @Component({
   selector: 'porter-routes',
@@ -46,6 +47,7 @@ export class PorterRoutesComponent implements OnInit, OnDestroy, AfterViewChecke
   constructor(
     private authService: AuthService,
     private userService: UserService,
+    private statusService: PorterStatusService,
     private router: Router,
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
@@ -59,7 +61,8 @@ export class PorterRoutesComponent implements OnInit, OnDestroy, AfterViewChecke
     this.userService.getPorterProfileByEmail(email).subscribe({
       next: (p: any) => {
         this.porterProfile = p;
-        this.isOnline = p.isOnline ?? false;
+        this.statusService.init(p.userId, p.isOnline ?? false);
+        this.isOnline = this.statusService.isOnline;
         this.generateInitials(p.name);
         this.userService.getWalletByUserId(p.userId).subscribe({
           next: (w: any) => { this.earningsToday = w.balance ?? 0; }
@@ -220,12 +223,28 @@ export class PorterRoutesComponent implements OnInit, OnDestroy, AfterViewChecke
   toggleStatus(): void {
     if (!this.porterProfile || this.isToggling) return;
     this.isToggling = true;
-    this.isOnline   = !this.isOnline;
+    const newStatus = !this.isOnline;
+    const previousStatus = this.isOnline;
+    this.isOnline = newStatus;
+    if (this.porterProfile) this.porterProfile.isOnline = newStatus;
+    this.statusService.set(newStatus);
     this.statusToast = this.isOnline ? "You're now Online" : "You went Offline";
     setTimeout(() => { this.isToggling = false; }, 600);
     setTimeout(() => { this.statusToast = ''; }, 2800);
     this.userService.updatePorterStatus(this.porterProfile.userId, this.isOnline).subscribe({
-      error: () => { this.isOnline = !this.isOnline; }
+      next: (response) => {
+        if (response) {
+          this.porterProfile = response;
+          this.isOnline = response.isOnline ?? newStatus;
+          this.statusService.set(this.isOnline);
+        }
+      },
+      error: () => {
+        this.isOnline = previousStatus;
+        if (this.porterProfile) this.porterProfile.isOnline = previousStatus;
+        this.statusService.set(previousStatus);
+        this.statusToast = 'Failed to update status';
+      }
     });
   }
 
@@ -242,5 +261,5 @@ export class PorterRoutesComponent implements OnInit, OnDestroy, AfterViewChecke
     if (el && !el.contains(e.target as Node)) this.showProfileDropdown = false;
   }
 
-  logout(): void { this.authService.logout(); this.router.navigate(['/login']); }
+  logout(): void { this.statusService.reset(); this.authService.logout(); this.router.navigate(['/login']); }
 }

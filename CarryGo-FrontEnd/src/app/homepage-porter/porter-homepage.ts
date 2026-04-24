@@ -208,7 +208,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     this.userService.getPorterProfileByEmail(email).subscribe({
       next: (profile: PorterProfile) => {
         this.porterProfile = profile;
-        this.statusService.init(profile.userId);
+        this.statusService.init(profile.userId, profile.isOnline ?? false);
         this.isOnline = this.statusService.isOnline;
         this.generateInitials(profile.name);
         this.loadWallet(profile.userId);
@@ -312,12 +312,8 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
         if (event === 'rideRequest' && this.isOnline) {
           this.handleIncomingRequest(data);
         }
-        if (event === 'chatMessage' && this.showChat && data.deliveryId === this.chatDeliveryId) {
-          if (!this.chatMessages.some((m: any) => m.id === data.id)) {
-            this.chatMessages = [...this.chatMessages, data];
-            this.cdr.detectChanges();
-            this.scrollPorterChatToBottom();
-          }
+        if (event === 'rideTaken') {
+          this.handleRideTaken(data);
         }
       }
     });
@@ -474,19 +470,46 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     if (!this.porterProfile || this.isToggling) return;
     this.isToggling = true;
     const newStatus = !this.isOnline;
+    const previousStatus = this.isOnline;
     this.isOnline   = newStatus;
+    if (this.porterProfile) this.porterProfile.isOnline = newStatus;
     this.statusService.set(newStatus);
 
     if (!newStatus) { this.orderRequests = []; this.notificationCount = 0; }
-
     this.statusToast = newStatus ? "You're now Online" : "You went Offline";
-    setTimeout(() => { this.isToggling = false; }, 500);
     setTimeout(() => { this.statusToast = ''; }, 2800);
 
     const uid = this.porterProfile.userId;
     this.userService.updatePorterStatus(uid, newStatus).subscribe({
-      next:  () => { if (newStatus) this.fetchPendingForPorter(uid); },
-      error: () => { if (newStatus) this.fetchPendingForPorter(uid); }
+      next:  (response) => {
+        if (response) {
+          this.porterProfile = response;
+          this.isOnline = response.isOnline ?? newStatus;
+          this.statusService.set(this.isOnline);
+        } else {
+          this.isOnline = previousStatus;
+          if (this.porterProfile) this.porterProfile.isOnline = previousStatus;
+          this.statusService.set(previousStatus);
+        }
+
+        if (this.isOnline) {
+          this.fetchPendingForPorter(uid);
+        } else {
+          this.orderRequests = [];
+          this.notificationCount = 0;
+        }
+      },
+      error: () => {
+        this.isOnline = previousStatus;
+        if (this.porterProfile) this.porterProfile.isOnline = previousStatus;
+        this.statusService.set(previousStatus);
+        this.statusToast = 'Failed to update status. Please try again.';
+        setTimeout(() => { this.statusToast = ''; }, 2800);
+      },
+      complete: () => {
+        this.isToggling = false;
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -575,6 +598,8 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     });
   }
 
+  trackByIndex(index: number): number { return index; }
+
   onOtpInput(event: Event, index: number): void {
     const input = event.target as HTMLInputElement;
     const val = input.value.replace(/\D/g, '').slice(-1);
@@ -582,10 +607,49 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     const digits = [...this.otpDigits];      // NEW array reference — Angular CD detects this
     digits[index] = val;
     this.otpDigits = digits;
+    this.otpError = '';
     this.cdr.detectChanges();
     if (val && index < 3) {
       this.otpInputRefs?.toArray()[index + 1]?.nativeElement.focus();
     }
+  }
+
+  onOtpKeydown(event: KeyboardEvent, index: number): void {
+    const key = event.key;
+    if (key === 'Backspace') {
+      event.preventDefault();
+      if (this.otpDigits[index]) {
+        const digits = [...this.otpDigits];
+        digits[index] = '';
+        this.otpDigits = digits;
+        this.cdr.detectChanges();
+      } else if (index > 0) {
+        const prev = this.otpInputRefs?.toArray()[index - 1]?.nativeElement;
+        if (prev) { prev.value = ''; prev.focus(); }
+      }
+      return;
+    }
+    if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Tab') {
+      return;
+    }
+    if (!/^[0-9]$/.test(key)) {
+      event.preventDefault();
+    }
+  }
+
+  onOtpPaste(event: ClipboardEvent): void {
+    event.preventDefault();
+    const paste = event.clipboardData?.getData('text')?.replace(/\D/g, '').slice(0, 4) || '';
+    if (!paste) return;
+    const digits = [...this.otpDigits];
+    for (let i = 0; i < paste.length && i < 4; i++) {
+      digits[i] = paste[i];
+    }
+    this.otpDigits = digits;
+    this.otpError = '';
+    this.cdr.detectChanges();
+    const focusIndex = Math.min(paste.length, 3);
+    this.otpInputRefs?.toArray()[focusIndex]?.nativeElement.focus();
   }
 
   onOtpBackspace(event: Event, index: number): void {
@@ -597,6 +661,25 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
       if (prev) { prev.value = ''; prev.focus(); }
       this.cdr.detectChanges();
     }
+  }
+
+  handleRideTaken(data: any): void {
+    const deliveryId = data?.deliveryId;
+    const commuterName = data?.commuterName || 'Another porter';
+    if (!deliveryId) return;
+
+    this.orderRequests = this.orderRequests.filter(o => o.deliveryId !== deliveryId);
+    this.notificationCount = this.orderRequests.length;
+    if (this.incomingRequest?.deliveryId === deliveryId) {
+      this.closePopup();
+    }
+    if (this.otpOrderId === deliveryId) {
+      this.cancelOtp();
+    }
+
+    this.errorMessage = `${commuterName} already accepted this order. It has been removed.`;
+    setTimeout(() => { this.errorMessage = ''; this.cdr.detectChanges(); }, 4000);
+    this.cdr.detectChanges();
   }
 
   submitOtp(): void {
@@ -729,16 +812,31 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   }
 
   submitWithdraw(): void {
-    if (!this.withdrawValid || this.withdrawing) return;
+    if (!this.withdrawValid || this.withdrawing || !this.porterProfile) return;
     this.withdrawing = true;
-    setTimeout(() => {
-      const amt          = parseFloat(this.withdrawAmount);
-      this.walletBalance -= amt;
-      this.withdrawing   = false;
-      this.withdrawSuccess = true;
-      if (this.porterProfile) this.loadWallet(this.porterProfile.userId);
-      setTimeout(() => this.closeWithdraw(), 2000);
-    }, 1800);
+    const amt = parseFloat(this.withdrawAmount);
+    this.http.post<any>(`${this.apiBase}/wallets/user/${this.porterProfile.userId}/deduct`, { amount: amt })
+      .pipe(catchError(() => of(null)))
+      .subscribe({
+        next: (res) => {
+          if (res) {
+            this.walletBalance = res.balance ?? (this.walletBalance - amt);
+          } else {
+            this.walletBalance -= amt;
+          }
+          this.withdrawing     = false;
+          this.withdrawSuccess = true;
+          if (this.porterProfile) this.loadWallet(this.porterProfile.userId);
+          setTimeout(() => this.closeWithdraw(), 2000);
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.withdrawing  = false;
+          this.errorMessage = 'Withdrawal failed. Please try again.';
+          setTimeout(() => { this.errorMessage = ''; this.cdr.detectChanges(); }, 3000);
+          this.cdr.detectChanges();
+        }
+      });
   }
 
   // ── Navigation Map ────────────────────────────────────────────────────────
@@ -930,6 +1028,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   }
 
   logout(): void {
+    this.statusService.reset();
     this.authService.logout();
     this.router.navigate(['/login']);
   }

@@ -1,20 +1,29 @@
 package com.cts.mrfp.carrygo.controller;
 
 
-import com.cts.mrfp.carrygo.model.Deliveries;
-import com.cts.mrfp.carrygo.model.Users;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.cts.mrfp.carrygo.dto.DeliveriesDTO;
+import com.cts.mrfp.carrygo.model.Deliveries;
+import com.cts.mrfp.carrygo.model.PorterRoute;
+import com.cts.mrfp.carrygo.model.Users;
 import com.cts.mrfp.carrygo.repository.UsersRepository;
 import com.cts.mrfp.carrygo.service.DeliveriesService;
 import com.cts.mrfp.carrygo.service.PorterRouteService;
-import com.cts.mrfp.carrygo.model.PorterRoute;
 import com.cts.mrfp.carrygo.util.DTOConverter;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/deliveries")
@@ -130,12 +139,11 @@ public class DeliveriesController {
         for (com.cts.mrfp.carrygo.model.Users porter : onlinePorters) {
             List<PorterRoute> routes = porterRouteRepository.findByPorterUserId(porter.getUserId());
             if (routes.isEmpty()) {
-                count++; // porter with no routes sees all deliveries
-            } else {
-                boolean matches = routes.stream().anyMatch(r ->
-                    routeService.matchesDelivery(r, pickupLat, pickupLng, dropLat, dropLng));
-                if (matches) count++;
+                continue; // no route path -> do not count as a match
             }
+            boolean matches = routes.stream().anyMatch(r ->
+                routeService.matchesDelivery(r, pickupLat, pickupLng, dropLat, dropLng));
+            if (matches) count++;
         }
         return ResponseEntity.ok(count);
     }
@@ -156,8 +164,8 @@ public class DeliveriesController {
                  || d.getDropAddress()   == null || d.getDropAddress().isBlank()) return false;
                 // No coords on delivery → show to everyone (fallback)
                 if (d.getPickupLat() == null || d.getDropLat() == null) return true;
-                // No routes set → show everything
-                if (routes.isEmpty()) return true;
+                // No routes set → do not show anything unless there is a route path match
+                if (routes.isEmpty()) return false;
                 // Match if any route fits
                 return routes.stream().anyMatch(r ->
                     routeService.matchesDelivery(r, d.getPickupLat(), d.getPickupLng(),

@@ -40,6 +40,25 @@
         Services
       </a>
 
+      <!-- Switch to Porter Mode (already a commuter) -->
+      <a *ngIf="isAlreadyCommuter" class="nav-item" (click)="goToPorterDashboard()"
+         style="margin-top:auto; border-top:1px solid #f0f0f0; padding-top:12px;">
+        <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+        </svg>
+        Porter Mode
+      </a>
+
+      <!-- Become a Commuter (pure user) -->
+      <a *ngIf="!isAlreadyCommuter" class="nav-item" (click)="goToBecomeCommuter()"
+         style="margin-top:auto; border-top:1px solid #f0f0f0; padding-top:12px;">
+        <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Become a Commuter
+      </a>
+
     </nav>
 
     <div class="sidebar-footer">
@@ -47,7 +66,7 @@
         <div class="sidebar-avatar">{{ getInitials() }}</div>
         <div class="sidebar-user-info">
           <span class="sidebar-user-name">{{ getFirstName() }}</span>
-          <span class="sidebar-user-role">Customer</span>
+          <span class="sidebar-user-role">{{ isAlreadyCommuter ? 'Commuter' : 'Customer' }}</span>
         </div>
       </div>
       <button class="sidebar-logout" (click)="logout()" title="Log out">
@@ -424,6 +443,7 @@
             </div>
 
             <!-- CTA -->
+            <div class="form-error" *ngIf="bookingError">{{ bookingError }}</div>
             <button
               *ngIf="bookingStep === 'idle'"
               class="btn-primary"
@@ -535,15 +555,18 @@
               <div *ngFor="let d of getActiveDeliveries()"
                    class="track-item track-item-clickable"
                    (click)="openDeliveryDetail(d)">
-                <div class="track-route">
-                  <span class="track-from">{{ d.pickupAddress | slice:0:20 }}…</span>
-                  <svg width="14" height="14" fill="none" stroke="#aaa" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
-                  </svg>
-                  <span class="track-to">{{ d.dropAddress | slice:0:20 }}…</span>
+                <!-- Row 1: route + badge -->
+                <div class="track-item-row">
+                  <div class="track-route">
+                    <span class="track-from">{{ d.pickupAddress | slice:0:18 }}…</span>
+                    <svg width="14" height="14" fill="none" stroke="#aaa" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                    </svg>
+                    <span class="track-to">{{ d.dropAddress | slice:0:18 }}…</span>
+                  </div>
+                  <span class="status-badge" [ngClass]="getStatusClass(d.status)">{{ getStatusLabel(d.status) }}</span>
                 </div>
-                <span class="status-badge" [ngClass]="getStatusClass(d.status)">{{ getStatusLabel(d.status) }}</span>
-                <!-- OTP strip — show whenever order is active and OTP is available -->
+                <!-- Row 2: OTP strip -->
                 <div class="track-otp-row"
                      *ngIf="!['DELIVERED','CANCELLED'].includes((d.status||'').toUpperCase()) && d.otp"
                      [class.track-otp-urgent]="(d.status||'').toUpperCase() === 'ARRIVED_AT_PICKUP'">
@@ -553,7 +576,7 @@
                   <span class="otp-label">OTP:</span>
                   <span class="otp-value">{{ d.otp }}</span>
                 </div>
-                <!-- Porter info strip after acceptance -->
+                <!-- Row 3: Porter info strip -->
                 <div class="track-porter-strip" *ngIf="d.commuterName && ['ACCEPTED','ARRIVED_AT_PICKUP','PICKED_UP'].includes((d.status||'').toUpperCase())">
                   <svg width="11" height="11" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>

@@ -6,6 +6,7 @@ import { HttpClient } from '@angular/common/http';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user-service';
+import { PorterStatusService } from '../services/porter-status.service';
 
 interface PorterProfile {
   userId: number;
@@ -106,6 +107,7 @@ export class PorterProfileComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private userService: UserService,
+    private statusService: PorterStatusService,
     private router: Router,
     private http: HttpClient
   ) {}
@@ -118,7 +120,8 @@ export class PorterProfileComponent implements OnInit {
     this.userService.getPorterProfileByEmail(email).subscribe({
       next: (p: PorterProfile) => {
         this.profile = p;
-        this.isOnline = p.isOnline ?? false;
+        this.statusService.init(p.userId, p.isOnline ?? false);
+        this.isOnline = this.statusService.isOnline;
         this.generateInitials(p.name);
         this.loadAllData(p.userId);
       },
@@ -284,13 +287,36 @@ export class PorterProfileComponent implements OnInit {
   toggleStatus(): void {
     if (!this.profile || this.isToggling) return;
     this.isToggling = true;
-    this.isOnline = !this.isOnline;
+    const newStatus = !this.isOnline;
+    const previousStatus = this.isOnline;
+    this.isOnline = newStatus;
+    if (this.profile) this.profile.isOnline = newStatus;
+    this.statusService.set(newStatus);
     this.statusToast = this.isOnline ? "You're now Online" : "You went Offline";
     setTimeout(() => { this.isToggling = false; }, 600);
     setTimeout(() => { this.statusToast = ''; }, 2800);
     this.userService.updatePorterStatus(this.profile.userId, this.isOnline).subscribe({
-      error: () => { this.isOnline = !this.isOnline; }
+      next: (response) => {
+        if (response) {
+          this.profile = response;
+          this.isOnline = response.isOnline ?? newStatus;
+          this.statusService.set(this.isOnline);
+        }
+      },
+      error: () => {
+        this.isOnline = previousStatus;
+        if (this.profile) this.profile.isOnline = previousStatus;
+        this.statusService.set(previousStatus);
+        this.statusToast = 'Failed to update status';
+      }
     });
+  }
+
+  get displayRole(): string {
+    const role = this.profile?.role ?? '';
+    const roles = role.toLowerCase().split(',').map(r => r.trim());
+    if (roles.includes('porter') || roles.includes('commuter')) return 'Commuter';
+    return 'User';
   }
 
   generateInitials(name: string): void {
@@ -311,5 +337,5 @@ export class PorterProfileComponent implements OnInit {
     if (el && !el.contains(event.target as Node)) this.showProfileDropdown = false;
   }
 
-  logout(): void { this.authService.logout(); this.router.navigate(['/login']); }
+  logout(): void { this.statusService.reset(); this.authService.logout(); this.router.navigate(['/login']); }
 }

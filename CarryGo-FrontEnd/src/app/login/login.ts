@@ -45,7 +45,10 @@ export class Login {
           console.log('User role:', response.role);
           
           // Route based on role from response
-          if (response.role === 'porter' || response.role === 'commuter') {
+          const roles = (response.role ?? '').toLowerCase().split(',').map((r: string) => r.trim());
+          const hasPorterRole = roles.includes('porter') || roles.includes('commuter');
+          const loggedInAsPorter = this.loginData.role === 'porter' || this.loginData.role === 'commuter';
+          if (hasPorterRole && loggedInAsPorter) {
             console.log('Routing to porter-dashboard');
             this.router.navigate(['/porter-dashboard', response.userId]);
           } else {

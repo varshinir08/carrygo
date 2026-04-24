@@ -48,7 +48,7 @@ export class UserService {
 
   updatePorterStatus(userId: number, isOnline: boolean): Observable<PorterProfile> {
     return this.http.put<PorterProfile>(`${this.baseUrl}/users/${userId}/status`, {
-      is_online: isOnline
+      isOnline: isOnline
     });
   }
 
