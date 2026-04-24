@@ -192,12 +192,13 @@ export class UserDashboard implements OnInit, OnDestroy {
   private dropDebounce:   any = null;
 
   /* ── Chat window ── */
-  showChat        = false;
-  chatDeliveryId: number | null = null;
-  chatDelivery:   any = null;
-  chatMessages:   ChatMsg[] = [];
-  chatInput       = '';
-  chatSending     = false;
+  showChat         = false;
+  chatDeliveryId:  number | null = null;
+  chatDelivery:    any = null;
+  chatMessages:    ChatMsg[] = [];
+  chatInput        = '';
+  chatSending      = false;
+  chatUnreadCount  = 0;    // unread messages while chat window is closed
   @ViewChild('chatScroll') chatScrollRef?: ElementRef<HTMLElement>;
   @ViewChild('inlineMapEl') inlineMapElRef?: ElementRef<HTMLDivElement>;
 
@@ -271,11 +272,20 @@ export class UserDashboard implements OnInit, OnDestroy {
         if (event === 'statusUpdate') {
           this.loadData();
         }
-        if (event === 'chatMessage' && this.showChat && data.deliveryId === this.chatDeliveryId) {
-          if (!this.chatMessages.some((m: ChatMsg) => m.id === data.id)) {
-            this.chatMessages = [...this.chatMessages, data];
+        if (event === 'chatMessage') {
+          if (this.showChat && data.deliveryId === this.chatDeliveryId) {
+            // Chat window is open for this delivery — render immediately
+            if (!this.chatMessages.some((m: ChatMsg) => m.id === data.id)) {
+              this.chatMessages = [...this.chatMessages, data];
+              this.cdr.detectChanges();
+              this.scrollChatToBottom();
+            }
+          } else {
+            // Chat window is closed or showing a different delivery — count as unread
+            // and make sure we're subscribed so future messages keep arriving
+            this.chatUnreadCount++;
+            this.sseService.subscribeToChat(data.deliveryId);
             this.cdr.detectChanges();
-            this.scrollChatToBottom();
           }
         }
       }
@@ -330,6 +340,13 @@ export class UserDashboard implements OnInit, OnDestroy {
             }
           }
         }
+        // Auto-subscribe to chat for every active delivery that has a porter assigned.
+        // This ensures the user receives real-time messages even before opening the chat window.
+        const activeStatuses = ['ACCEPTED', 'ARRIVED_AT_PICKUP', 'PICKED_UP'];
+        deliveries
+          .filter((d: any) => d.commuterId && activeStatuses.includes((d.status || '').toUpperCase()))
+          .forEach((d: any) => this.sseService.subscribeToChat(d.deliveryId));
+
         this.cdr.detectChanges();
       },
       error: err => console.error('Data load error', err),
@@ -607,7 +624,7 @@ export class UserDashboard implements OnInit, OnDestroy {
   /* ─────────────── Delivery detail drawer ─────────────── */
 
   openDeliveryDetail(d: any): void {
-    this.selectedDelivery  = d;
+    this.selectedDelivery   = d;
     this.showDeliveryDetail = true;
     this.cdr.detectChanges();
   }
@@ -615,6 +632,17 @@ export class UserDashboard implements OnInit, OnDestroy {
   closeDeliveryDetail(): void {
     this.showDeliveryDetail = false;
     this.selectedDelivery   = null;
+  }
+
+  /* ─────────────── OTP reveal (summary card) ─────────────── */
+  // Tracks which delivery's OTP is currently revealed on the summary card.
+  // Only one at a time; tapping again hides it.
+  otpRevealedId: number | null = null;
+
+  toggleOtpReveal(deliveryId: number, event: Event): void {
+    event.stopPropagation(); // don't open the detail modal
+    this.otpRevealedId = this.otpRevealedId === deliveryId ? null : deliveryId;
+    this.cdr.detectChanges();
   }
 
   /* ─────────────── Section nav ─────────────── */
@@ -962,10 +990,11 @@ export class UserDashboard implements OnInit, OnDestroy {
   /* ─────────────── Chat ─────────────── */
 
   openChat(d: any): void {
-    this.chatDelivery   = d;
-    this.chatDeliveryId = d.deliveryId;
-    this.chatMessages   = [];
-    this.showChat       = true;
+    this.chatDelivery    = d;
+    this.chatDeliveryId  = d.deliveryId;
+    this.chatMessages    = [];
+    this.showChat        = true;
+    this.chatUnreadCount = 0;   // clear the unread badge
     this.http.get<ChatMsg[]>(`${this.apiBase}/chat/${d.deliveryId}`)
       .pipe(catchError(() => of([] as ChatMsg[])))
       .subscribe(msgs => {
@@ -993,7 +1022,11 @@ export class UserDashboard implements OnInit, OnDestroy {
     this.http.post<ChatMsg>(`${this.apiBase}/chat/${this.chatDeliveryId}/send`, body)
       .pipe(catchError(() => of(null)))
       .subscribe(saved => {
-        if (saved) this.chatMessages = [...this.chatMessages, saved];
+        // Dedup: WebSocket broadcast may arrive before the HTTP response —
+        // only add if not already in the list (prevents double-render)
+        if (saved && !this.chatMessages.some((m: ChatMsg) => m.id === saved.id)) {
+          this.chatMessages = [...this.chatMessages, saved];
+        }
         this.chatInput   = '';
         this.chatSending = false;
         this.cdr.detectChanges();

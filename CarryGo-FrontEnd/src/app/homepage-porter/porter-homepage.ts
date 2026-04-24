@@ -127,8 +127,11 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   // Navigation map modal
   showNavMap        = false;
   navOrder:         DeliveryOrder | null = null;
-  private navMapInstance: any  = null;
-  private navMapLib:      any  = null;
+  private navMapInstance:   any  = null;
+  private navMapLib:        any  = null;
+  private gpsWatchId:       number | null = null;
+  private porterLocMarker:  any  = null;
+  private readonly NAV_MAP_KEY = 'cg_nav_map_order_id';
   @ViewChild('navMapEl') navMapElRef!: ElementRef<HTMLDivElement>;
 
   // Withdraw modal
@@ -187,6 +190,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     this.stopCountdown();
     this.destroyCharts();
     if (this.chatDeliveryId) this.sseService.unsubscribeFromChat(this.chatDeliveryId);
+    this.stopGpsWatch();
   }
 
   // ── Week labels ──────────────────────────────────────────────────────────
@@ -265,6 +269,19 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
         }
 
         this.cdr.detectChanges();
+
+        // Auto-restore the nav map if it was open before the page refreshed
+        if (isPlatformBrowser(this.platformId)) {
+          const savedId = sessionStorage.getItem(this.NAV_MAP_KEY);
+          if (savedId && !this.showNavMap) {
+            const order = this.activeOrders.find(o => o.deliveryId === Number(savedId));
+            if (order) {
+              setTimeout(() => this.openNavMap(order), 250);
+            } else {
+              sessionStorage.removeItem(this.NAV_MAP_KEY); // order no longer active
+            }
+          }
+        }
       }
     });
   }
@@ -532,6 +549,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
         this.orderRequests     = this.orderRequests.filter(o => o.deliveryId !== order.deliveryId);
         this.activeOrders      = [merged, ...this.activeOrders];
         this.activeOrdersCount = this.activeOrders.length;
+        this.todayDeliveries   = this.activeOrders.length + this.completedCount;
         this.notificationCount = this.orderRequests.length;
         // Feature 4: Auto-open navigation map immediately after accept
         this.openNavMap(merged);
@@ -575,28 +593,70 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     });
   }
 
-  onOtpInput(event: Event, index: number): void {
-    const input = event.target as HTMLInputElement;
-    const val = input.value.replace(/\D/g, '').slice(-1);
-    input.value = val;                       // enforce single digit in DOM immediately
-    const digits = [...this.otpDigits];      // NEW array reference — Angular CD detects this
-    digits[index] = val;
-    this.otpDigits = digits;
-    this.cdr.detectChanges();
-    if (val && index < 3) {
-      this.otpInputRefs?.toArray()[index + 1]?.nativeElement.focus();
+  trackOtpIndex(index: number): number { return index; }
+
+  onOtpKeydown(event: KeyboardEvent, index: number): void {
+    const { key } = event;
+
+    // Allow navigation keys to pass through unchanged
+    if (['Tab', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(key)) return;
+
+    // Allow Ctrl+C / Cmd+C (copy) and Ctrl+V / Cmd+V (paste handled by onOtpPaste)
+    if ((event.ctrlKey || event.metaKey) && ['c', 'v', 'a'].includes(key.toLowerCase())) return;
+
+    // Always block default so the browser never writes to the DOM
+    event.preventDefault();
+
+    if (key === 'Backspace') {
+      const digits = [...this.otpDigits];
+      if (digits[index]) {
+        // Clear current box
+        digits[index] = '';
+        this.otpDigits = digits;
+      } else if (index > 0) {
+        // Move back and clear previous box
+        digits[index - 1] = '';
+        this.otpDigits = digits;
+        this.otpInputRefs?.toArray()[index - 1]?.nativeElement.focus();
+      }
+      this.cdr.detectChanges();
+      return;
     }
+
+    if (/^\d$/.test(key)) {
+      const digits = [...this.otpDigits];
+      digits[index] = key;
+      this.otpDigits = digits;
+      this.cdr.detectChanges();
+      // Auto-advance to next box
+      if (index < 3) {
+        this.otpInputRefs?.toArray()[index + 1]?.nativeElement.focus();
+      }
+    }
+    // All other keys (letters, symbols, etc.) are silently ignored
   }
 
-  onOtpBackspace(event: Event, index: number): void {
-    if (!this.otpDigits[index] && index > 0) {
-      const digits = [...this.otpDigits];
-      digits[index - 1] = '';
-      this.otpDigits = digits;
-      const prev = this.otpInputRefs?.toArray()[index - 1]?.nativeElement;
-      if (prev) { prev.value = ''; prev.focus(); }
-      this.cdr.detectChanges();
-    }
+  onOtpPaste(event: ClipboardEvent): void {
+    event.preventDefault();
+    const pasted = event.clipboardData?.getData('text') ?? '';
+    // Extract up to 4 digits from whatever was pasted
+    const digits = pasted.replace(/\D/g, '').slice(0, 4).split('');
+    if (digits.length === 0) return;
+
+    const newDigits = [...this.otpDigits];
+    digits.forEach((d, i) => { newDigits[i] = d; });
+    this.otpDigits = newDigits;
+    this.cdr.detectChanges();
+
+    // Focus the box after the last pasted digit (or stay on box 3 if all filled)
+    const focusIndex = Math.min(digits.length, 3);
+    this.otpInputRefs?.toArray()[focusIndex]?.nativeElement.focus();
+  }
+
+  copyOtp(): void {
+    const otp = this.otpDigits.join('');
+    if (!otp.trim() || !isPlatformBrowser(this.platformId)) return;
+    navigator.clipboard.writeText(otp).catch(() => {});
   }
 
   submitOtp(): void {
@@ -647,9 +707,10 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     ).subscribe({
       next: () => {
         const earned        = order.totalAmount ?? 0;
-        this.activeOrders   = this.activeOrders.filter(o => o.deliveryId !== order.deliveryId);
+        this.activeOrders      = this.activeOrders.filter(o => o.deliveryId !== order.deliveryId);
         this.activeOrdersCount = this.activeOrders.length;
         this.completedCount++;
+        this.todayDeliveries   = this.activeOrders.length + this.completedCount;
         this.earningsToday += earned;
         this.walletBalance += earned;
         this.weekDeliveries[6]++;
@@ -745,6 +806,9 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   openNavMap(order: DeliveryOrder): void {
     this.navOrder   = order;
     this.showNavMap = true;
+    if (isPlatformBrowser(this.platformId)) {
+      sessionStorage.setItem(this.NAV_MAP_KEY, String(order.deliveryId));
+    }
     setTimeout(() => this.initNavMap(order), 80);
   }
 
@@ -753,6 +817,18 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     this.navMapInstance?.remove();
     this.navMapInstance = null;
     this.navOrder = null;
+    this.stopGpsWatch();
+    if (isPlatformBrowser(this.platformId)) {
+      sessionStorage.removeItem(this.NAV_MAP_KEY);
+    }
+  }
+
+  private stopGpsWatch(): void {
+    if (this.gpsWatchId !== null && isPlatformBrowser(this.platformId)) {
+      navigator.geolocation.clearWatch(this.gpsWatchId);
+      this.gpsWatchId = null;
+    }
+    this.porterLocMarker = null;
   }
 
   private async initNavMap(order: DeliveryOrder): Promise<void> {
@@ -771,6 +847,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     }
 
     const L = this.navMapLib;
+    this.stopGpsWatch();           // clear previous GPS watch before re-init
     this.navMapInstance?.remove();
 
     const map = L.map(el, { zoomControl: true }).setView([20.5937, 78.9629], 5);
@@ -795,6 +872,11 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
       className: '',
       html: `<div style="width:14px;height:14px;border-radius:50%;background:#ef4444;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
       iconSize: [14, 14], iconAnchor: [7, 7],
+    });
+    const myLocIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:16px;height:16px;border-radius:50%;background:#2563eb;border:3px solid #fff;box-shadow:0 0 0 3px rgba(37,99,235,0.35),0 2px 8px rgba(37,99,235,0.5)"></div>`,
+      iconSize: [16, 16], iconAnchor: [8, 8],
     });
 
     L.marker([pickupCoord.lat, pickupCoord.lng], { icon: greenIcon })
@@ -821,6 +903,26 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
         if (this.navOrder) (this.navOrder as any)._routeInfo = `${dist} km · ~${dur} min`;
       }
     } catch {}
+
+    // ── Live GPS tracking — continuously update the porter's own location ──
+    if ('geolocation' in navigator) {
+      this.gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          if (this.porterLocMarker) {
+            // Just move the existing marker — no flicker
+            this.porterLocMarker.setLatLng([lat, lng]);
+          } else if (this.navMapInstance) {
+            this.porterLocMarker = L.marker([lat, lng], { icon: myLocIcon, zIndexOffset: 1000 })
+              .addTo(this.navMapInstance)
+              .bindPopup('<b>Your location</b>');
+          }
+        },
+        (err) => console.warn('GPS unavailable:', err.message),
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
+      );
+    }
   }
 
   private async geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
@@ -910,7 +1012,11 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     this.http.post<any>(`${this.apiBase}/chat/${this.chatDeliveryId}/send`, body)
       .pipe(catchError(() => of(null)))
       .subscribe(saved => {
-        if (saved) this.chatMessages = [...this.chatMessages, saved];
+        // Dedup: WebSocket broadcast may arrive before the HTTP response —
+        // only add if not already in the list (prevents double-render)
+        if (saved && !this.chatMessages.some((m: any) => m.id === saved.id)) {
+          this.chatMessages = [...this.chatMessages, saved];
+        }
         this.chatInput   = '';
         this.chatSending = false;
         this.cdr.detectChanges();
