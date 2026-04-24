@@ -15,6 +15,7 @@ import { UserService } from '../services/user-service';
 import { MapPickerComponent, MapPickerResult } from '../map-picker/map-picker';
 import { FareService, FareEstimate } from '../services/fare.service';
 import { SseService } from '../services/sse.service';
+import { IntercityService, IntercityCourier } from '../services/intercity.service';
 import { forkJoin, interval, Subscription } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
@@ -47,7 +48,7 @@ interface WalletTxn {
   date: string;
 }
 
-type ActiveSection = 'home' | 'deliveries' | 'wallet' | 'services';
+type ActiveSection = 'home' | 'deliveries' | 'wallet' | 'services' | 'intercity';
 type PackageType   = 'documents' | 'electronics' | 'clothing' | 'fragile' | 'food' | 'other';
 type BookingStep   = 'idle' | 'estimated' | 'confirming-surge' | 'booked';
 
@@ -67,6 +68,14 @@ export class UserDashboard implements OnInit, OnDestroy {
 
   /* ── Section nav ── */
   activeSection: ActiveSection = 'home';
+
+  /* ── Intercity ── */
+  intercityCouriers: IntercityCourier[] = [];
+  intercityLoading  = false;
+  intercityError    = '';
+  intercityFromCity = '';
+  intercityToCity   = '';
+  intercitySortBy   = '';
 
   /* ── Delivery form ── */
   pickupAddress        = '';
@@ -208,6 +217,7 @@ export class UserDashboard implements OnInit, OnDestroy {
     private notificationsService: NotificationsService,
     private fareService:          FareService,
     private sseService:           SseService,
+    private intercityService:     IntercityService,
     private http:                 HttpClient,
     private cdr:                  ChangeDetectorRef,
     private router:               Router,
@@ -611,8 +621,46 @@ export class UserDashboard implements OnInit, OnDestroy {
 
   setSection(s: ActiveSection): void {
     this.activeSection = s;
+    if (s === 'intercity' && this.intercityCouriers.length === 0) {
+      this.loadIntercityCouriers();
+    }
     this.cdr.detectChanges();
     this.mainContentRef?.nativeElement.scrollTo({ top: 0 });
+  }
+
+  loadIntercityCouriers(): void {
+    this.intercityLoading = true;
+    this.intercityError   = '';
+    this.intercityService.getCouriers(
+      this.intercityFromCity,
+      this.intercityToCity,
+      this.intercitySortBy
+    ).subscribe({
+      next: (data) => {
+        this.intercityCouriers = data;
+        this.intercityLoading  = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.intercityError   = 'Failed to load courier services. Please try again.';
+        this.intercityLoading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  searchIntercity(): void {
+    this.intercityCouriers = [];
+    this.loadIntercityCouriers();
+  }
+
+  getStarArray(rating: number): number[] {
+    return Array.from({ length: 5 }, (_, i) => i + 1);
+  }
+
+  formatReviews(reviews: number): string {
+    if (reviews >= 1000) return (reviews / 1000).toFixed(1) + 'k';
+    return reviews.toString();
   }
 
   /* ─────────────── Delivery display helpers ─────────────── */
