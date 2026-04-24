@@ -268,13 +268,13 @@
               </div>
               <div class="otp-boxes">
                 <input #otpInput
-                       *ngFor="let digit of otpDigits; let i = index"
+                       *ngFor="let digit of otpDigits; let i = index; trackBy: trackOtpIndex"
                        class="otp-box" type="text" inputmode="numeric"
-                       autocomplete="off" pattern="[0-9]*"
+                       autocomplete="one-time-code" pattern="[0-9]*"
                        maxlength="1"
                        [value]="otpDigits[i]"
-                       (input)="onOtpInput($event, i)"
-                       (keydown.backspace)="onOtpBackspace($event, i)"/>
+                       (keydown)="onOtpKeydown($event, i)"
+                       (paste)="onOtpPaste($event)"/>
               </div>
               <div class="otp-error" *ngIf="otpError">{{ otpError }}</div>
               <div class="otp-actions">
