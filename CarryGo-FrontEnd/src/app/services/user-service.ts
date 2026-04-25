@@ -60,10 +60,6 @@ export class UserService {
     return this.http.get<any[]>(`${this.baseUrl}/deliveries/available`);
   }
 
-  getPorterRatings(userId: number): Observable<any[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/ratings/commuter/${userId}`);
-  }
-
   updatePorterProfile(userId: number, profileData: Partial<PorterProfile>): Observable<PorterProfile> {
     return this.http.put<PorterProfile>(`${this.baseUrl}/users/${userId}`, profileData);
   }

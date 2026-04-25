@@ -70,6 +70,7 @@ export class UserDashboard implements OnInit, OnDestroy {
   activeSection: ActiveSection = 'home';
 
   /* ── Intercity ── */
+  allIntercityCouriers: IntercityCourier[] = [];
   intercityCouriers: IntercityCourier[] = [];
   intercityLoading  = false;
   intercityError    = '';
@@ -659,15 +660,11 @@ export class UserDashboard implements OnInit, OnDestroy {
   loadIntercityCouriers(): void {
     this.intercityLoading = true;
     this.intercityError   = '';
-    this.intercityService.getCouriers(
-      this.intercityFromCity,
-      this.intercityToCity,
-      this.intercitySortBy
-    ).subscribe({
+    this.intercityService.getCouriers().subscribe({
       next: (data) => {
-        this.intercityCouriers = data;
-        this.intercityLoading  = false;
-        this.cdr.detectChanges();
+        this.allIntercityCouriers = data;
+        this.intercityLoading     = false;
+        this.applyIntercityFilters();
       },
       error: () => {
         this.intercityError   = 'Failed to load courier services. Please try again.';
@@ -678,8 +675,23 @@ export class UserDashboard implements OnInit, OnDestroy {
   }
 
   searchIntercity(): void {
-    this.intercityCouriers = [];
-    this.loadIntercityCouriers();
+    this.applyIntercityFilters();
+  }
+
+  applyIntercityFilters(): void {
+    let result = [...this.allIntercityCouriers];
+
+    const from = this.intercityFromCity.trim().toLowerCase();
+    const to   = this.intercityToCity.trim().toLowerCase();
+    if (from) result = result.filter(c => c.cities.some(city => city.toLowerCase().includes(from)));
+    if (to)   result = result.filter(c => c.cities.some(city => city.toLowerCase().includes(to)));
+
+    if (this.intercitySortBy === 'price')  result.sort((a, b) => a.basePrice - b.basePrice);
+    if (this.intercitySortBy === 'speed')  result.sort((a, b) => a.estimatedDays.localeCompare(b.estimatedDays));
+    if (this.intercitySortBy === 'rating') result.sort((a, b) => b.rating - a.rating);
+
+    this.intercityCouriers = result;
+    this.cdr.detectChanges();
   }
 
   getStarArray(rating: number): number[] {
@@ -798,15 +810,18 @@ export class UserDashboard implements OnInit, OnDestroy {
       ? (this.selectedUpiApp ? this.upiApps.find(a => a.id === this.selectedUpiApp)?.label ?? 'UPI' : `UPI · ${this.upiId}`)
       : `Net Banking · ${this.selectedBank}`;
 
-    this.wallet.balance = (this.wallet.balance || 0) + amt;
-    this.addTxn({ type: 'credit', amount: amt, description: 'Added to Wallet', method: methodLabel });
-    this.cdr.detectChanges();
-
-    setTimeout(() => {
+    this.walletService.topUp(this.user.userId, amt).pipe(catchError(() => of(null))).subscribe(() => {
+      this.addTxn({ type: 'credit', amount: amt, description: 'Added to Wallet', method: methodLabel });
       this.addMoneyStep = 'success';
-      this.walletService.topUp(this.user.userId, amt).pipe(catchError(() => of(null))).subscribe();
+      // Re-fetch wallet from server so the nav chip shows the actual server balance
+      this.walletService.getWalletByUserId(this.user.userId)
+        .pipe(catchError(() => of(null)))
+        .subscribe(w => {
+          if (w) this.wallet = w;
+          this.cdr.detectChanges();
+        });
       this.cdr.detectChanges();
-    }, 2000);
+    });
   }
 
   finishAddMoney(): void { this.showAddMoneyModal = false; }

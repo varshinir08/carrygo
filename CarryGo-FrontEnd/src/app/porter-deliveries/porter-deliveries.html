@@ -26,12 +26,6 @@
         </svg>
         <span>KYC Verification</span>
       </a>
-      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-routes', porterProfile.userId] : ['/porter-routes']" routerLinkActive="active">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
-        </svg>
-        <span>My Routes</span>
-      </a>
       <a class="nav-item" [routerLink]="porterProfile ? ['/porter-profile', porterProfile.userId] : ['/porter-profile']" routerLinkActive="active">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="8" r="4"/>
@@ -49,7 +43,7 @@
     <header class="top-header">
       <h2 class="header-title">Deliveries</h2>
       <div class="header-actions">
-        <div class="status-switch-wrap" [class.is-online]="isOnline" [class.toggling]="isToggling" (click)="toggleStatus()" role="switch" [attr.aria-checked]="isOnline" tabindex="0" (keydown.space)="toggleStatus()">
+        <div class="status-switch-wrap" [class.is-online]="isOnline" [class.toggling]="isToggling" (click)="$event.stopPropagation(); toggleStatus()" role="switch" [attr.aria-checked]="isOnline" tabindex="0" (keydown.space)="$event.stopPropagation(); toggleStatus()">
           <div class="switch-track">
             <span class="switch-label-off">Offline</span>
             <span class="switch-label-on">Online</span>
@@ -64,7 +58,7 @@
         <div class="earnings-chip">
           <span>&#8377;</span>
           <span class="earnings-amount">{{ earningsToday | number:'1.0-0' }}</span>
-          <span class="earnings-label">today</span>
+          <span class="earnings-label">wallet</span>
         </div>
         <button class="icon-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
@@ -96,7 +90,17 @@
       </div>
     </header>
 
-    <main class="deliveries-main">
+    <div *ngIf="!isOnline" class="offline-placeholder">
+      <div class="offline-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" width="48" height="48">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728M5.636 5.636a9 9 0 000 12.728M9 10a3 3 0 116 0M3 3l18 18"/>
+        </svg>
+      </div>
+      <p class="offline-msg">You're offline</p>
+      <p class="offline-sub">Toggle online to view your deliveries</p>
+    </div>
+
+    <main class="deliveries-main" *ngIf="isOnline">
 
       <!-- Page heading -->
       <div class="page-heading">
@@ -203,13 +207,35 @@
         </div>
       </ng-container>
 
-      <!-- Empty state -->
-      <div class="empty-state" *ngIf="filteredDeliveries.length === 0">
+      <!-- Loading state -->
+      <div class="empty-state" *ngIf="!deliveriesLoaded">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" width="40" height="40">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <p>Loading deliveries...</p>
+      </div>
+
+      <!-- No history at all -->
+      <div class="empty-state" *ngIf="deliveriesLoaded && allDeliveries.length === 0">
         <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" width="48" height="48">
           <path d="M5 8h14M5 8a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v.5"/>
           <path d="M5 8l-.867 9.143A2 2 0 006.126 19h11.748a2 2 0 001.993-1.857L19 8"/>
         </svg>
-        <p>No deliveries found</p>
+        <p style="font-weight:600; color:#64748b;">No delivery history yet</p>
+        <p style="font-size:0.82rem; color:#94a3b8;">Accept delivery requests from the Dashboard to get started.</p>
+        <a [routerLink]="porterProfile ? ['/porter-dashboard', porterProfile.userId] : ['/porter-dashboard']"
+           style="margin-top:8px; padding:8px 20px; background:#2563eb; color:#fff; border-radius:20px; font-size:13px; font-weight:600; text-decoration:none;">
+          Go to Dashboard
+        </a>
+      </div>
+
+      <!-- Filter returned no results -->
+      <div class="empty-state" *ngIf="deliveriesLoaded && allDeliveries.length > 0 && filteredDeliveries.length === 0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" width="48" height="48">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <p>No deliveries match your filter</p>
       </div>
 
     </main>

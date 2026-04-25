@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule, TitleCasePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { timeout, TimeoutError } from 'rxjs';
 
 @Component({
   selector: 'app-login',
@@ -19,7 +20,7 @@ export class Login {
   };
 
   isLoading = false;
-  errorMessage = '';
+  showPassword = false;
 
   constructor(
     private authService: AuthService,
@@ -27,15 +28,9 @@ export class Login {
   ) {}
 
   onSubmit() {
-    if (!this.loginData.email || !this.loginData.password) {
-      this.errorMessage = 'Email and password are required';
-      return;
-    }
-
     this.isLoading = true;
-    this.errorMessage = '';
 
-    this.authService.login(this.loginData).subscribe({
+    this.authService.login(this.loginData).pipe(timeout(8000)).subscribe({
       next: (response) => {
         console.log('Login successful', response);
         this.isLoading = false;
@@ -53,13 +48,21 @@ export class Login {
             this.router.navigate(['/user-dashboard', response.userId]);
           }
         } else {
-          this.errorMessage = 'Login successful but user data not found';
+          alert('Login successful but user data not found.');
         }
       },
       error: (err) => {
         this.isLoading = false;
-        console.error('Login error:', err);
-        this.errorMessage = err.error?.message || 'Invalid email or password';
+        if (err instanceof TimeoutError) {
+          alert('Request timed out. Please check your connection and try again.');
+        } else if (err.status === 401 || err.status === 403) {
+          alert('Incorrect email or password. Please try again.');
+        } else if (err.status === 0) {
+          alert('Cannot connect to server. Please try again later.');
+        } else {
+          const msg = typeof err.error === 'string' ? err.error : err.error?.message;
+          alert(msg || 'Login failed. Please try again.');
+        }
       }
     });
   }
