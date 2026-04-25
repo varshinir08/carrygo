@@ -1,5 +1,13 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+.offline-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 1; padding: 60px 24px; text-align: center; gap: 12px;
+}
+.offline-placeholder .offline-icon { opacity: 0.5; }
+.offline-placeholder .offline-msg { font-size: 1.1rem; font-weight: 600; color: #64748b; }
+.offline-placeholder .offline-sub { font-size: 0.875rem; color: #94a3b8; }
+
 .dashboard-wrapper {
   display: flex;
   height: 100vh;

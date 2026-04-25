@@ -1,11 +1,13 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user-service';
+import { PorterStatusService } from '../services/porter-status.service';
 
 interface PorterProfile {
   userId: number;
@@ -19,14 +21,6 @@ interface PorterProfile {
   licenceExpiry?: string;
   role: string;
   isOnline?: boolean;
-}
-
-interface Rating {
-  ratingId: number;
-  rating: number;
-  comment: string;
-  createdAt: string;
-  senderId?: number;
 }
 
 interface Delivery {
@@ -61,7 +55,7 @@ export class PorterProfileComponent implements OnInit {
 
   // Header state
   userInitials = '';
-  isOnline = false;
+  get isOnline(): boolean { return this.statusService.isOnline; }
   isToggling = false;
   statusToast = '';
   earningsToday = 0;
@@ -69,17 +63,13 @@ export class PorterProfileComponent implements OnInit {
 
   // Profile data
   profile: PorterProfile | null = null;
-  ratings: Rating[] = [];
   deliveries: Delivery[] = [];
   walletBalance = 0;
 
   // Computed stats
   totalDeliveries = 0;
-  avgRating = 0;
   thisMonthEarnings = 0;
   completionRate = 0;
-  totalReviews = 0;
-  starCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
   // Edit modals
   showEditPersonal = false;
@@ -87,6 +77,7 @@ export class PorterProfileComponent implements OnInit {
   isSavingPersonal = false;
   isSavingVehicle = false;
   saveSuccess = '';
+  saveError = '';
 
   editPersonal: EditPersonalForm = { name: '', phone: '', email: '' };
   editVehicle: EditVehicleForm  = { vehicleModel: '', vehicleNumber: '', vehicleType: '', licenceNumber: '', licenceExpiry: '' };
@@ -107,7 +98,10 @@ export class PorterProfileComponent implements OnInit {
     private authService: AuthService,
     private userService: UserService,
     private router: Router,
-    private http: HttpClient
+    private route: ActivatedRoute,
+    private http: HttpClient,
+    private statusService: PorterStatusService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -115,12 +109,21 @@ export class PorterProfileComponent implements OnInit {
     if (!email) { this.router.navigate(['/login']); return; }
     this.loadPrefs();
 
+    // Fire stats/data fetch immediately using userId from URL
+    const paramId = this.route.snapshot.paramMap.get('userId');
+    if (paramId) {
+      this.loadAllData(+paramId);
+    }
+
     this.userService.getPorterProfileByEmail(email).subscribe({
       next: (p: PorterProfile) => {
         this.profile = p;
-        this.isOnline = p.isOnline ?? false;
+        this.statusService.init(p.userId);
         this.generateInitials(p.name);
-        this.loadAllData(p.userId);
+        this.cdr.detectChanges();
+        if (!paramId) {
+          this.loadAllData(p.userId);
+        }
       },
       error: () => this.router.navigate(['/login'])
     });
@@ -128,44 +131,36 @@ export class PorterProfileComponent implements OnInit {
 
   loadAllData(userId: number): void {
     forkJoin({
-      wallet:    this.userService.getWalletByUserId(userId),
-      ratings:   this.http.get<Rating[]>(`${this.apiBase}/ratings/commuter/${userId}`),
-      deliveries: this.http.get<Delivery[]>(`${this.apiBase}/deliveries/commuter/${userId}`)
+      wallet:     this.userService.getWalletByUserId(userId).pipe(catchError(() => of({ balance: 0 }))),
+      deliveries: this.http.get<Delivery[]>(`${this.apiBase}/deliveries/commuter/${userId}`).pipe(catchError(() => of([])))
     }).subscribe({
-      next: ({ wallet, ratings, deliveries }) => {
-        this.walletBalance   = (wallet as any).balance ?? 0;
-        this.earningsToday   = this.walletBalance;
-        this.ratings         = ratings;
-        this.deliveries      = deliveries;
+      next: ({ wallet, deliveries }) => {
+        this.walletBalance = (wallet as any).balance ?? 0;
+        this.deliveries    = deliveries as Delivery[];
         this.computeStats();
-      },
-      error: () => {
-        // partial data — compute what we have
-        this.computeStats();
+        this.cdr.detectChanges();
       }
     });
   }
 
   computeStats(): void {
-    // Deliveries
+    const now = new Date();
+
     this.totalDeliveries = this.deliveries.length;
-    const delivered = this.deliveries.filter(d => d.status === 'DELIVERED');
+    const delivered = this.deliveries.filter(d => (d.status || '').toUpperCase() === 'DELIVERED');
     this.completionRate = this.totalDeliveries > 0
       ? Math.round((delivered.length / this.totalDeliveries) * 100) : 0;
 
-    // This month earnings from wallet balance
-    this.thisMonthEarnings = this.walletBalance;
+    this.earningsToday = delivered
+      .filter(d => new Date(d.createdAt).toDateString() === now.toDateString())
+      .reduce((sum, d) => sum + (d.totalAmount || 0), 0);
 
-    // Ratings
-    this.totalReviews = this.ratings.length;
-    this.starCounts   = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    this.ratings.forEach(r => {
-      const s = Math.min(5, Math.max(1, r.rating));
-      this.starCounts[s] = (this.starCounts[s] || 0) + 1;
-    });
-    this.avgRating = this.totalReviews > 0
-      ? Math.round((this.ratings.reduce((sum, r) => sum + r.rating, 0) / this.totalReviews) * 10) / 10
-      : 0;
+    this.thisMonthEarnings = delivered
+      .filter(d => {
+        const date = new Date(d.createdAt);
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      })
+      .reduce((sum, d) => sum + (d.totalAmount || 0), 0);
   }
 
   get isKycVerified(): boolean {
@@ -177,14 +172,6 @@ export class PorterProfileComponent implements OnInit {
       this.profile?.licenceExpiry
     );
   }
-
-  starBarPct(star: number): number {
-    if (!this.totalReviews) return 0;
-    return Math.round((this.starCounts[star] / this.totalReviews) * 100);
-  }
-
-  starArray(n: number): number[] { return Array(Math.round(n)).fill(0); }
-  emptyStars(n: number): number[] { return Array(5 - Math.round(n)).fill(0); }
 
   getMemberSince(): string {
     // Use the smallest delivery createdAt as a proxy, or fall back to current year
@@ -201,27 +188,33 @@ export class PorterProfileComponent implements OnInit {
   openEditPersonal(): void {
     if (!this.profile) return;
     this.editPersonal = { name: this.profile.name, phone: this.profile.phone, email: this.profile.email };
+    this.saveError = '';
     this.showEditPersonal = true;
   }
 
   savePersonal(): void {
     if (!this.profile) return;
     this.isSavingPersonal = true;
+    this.saveError = '';
     this.http.put<PorterProfile>(`${this.apiBase}/users/${this.profile.userId}`, {
       name: this.editPersonal.name,
       phone: this.editPersonal.phone
     }).subscribe({
-      next: (updated) => {
-        if (this.profile) {
-          this.profile.name  = this.editPersonal.name;
-          this.profile.phone = this.editPersonal.phone;
-          this.generateInitials(this.profile.name);
-        }
-        this.isSavingPersonal   = false;
-        this.showEditPersonal   = false;
-        this.showSaveSuccess('Personal details updated!');
+      next: () => {
+        this.userService.getPorterProfileById(this.profile!.userId).subscribe(p => {
+          this.profile = p;
+          this.generateInitials(p.name);
+          this.isSavingPersonal = false;
+          this.showEditPersonal = false;
+          this.showSaveSuccess('Personal details updated!');
+          this.cdr.detectChanges();
+        });
       },
-      error: () => { this.isSavingPersonal = false; }
+      error: () => {
+        this.isSavingPersonal = false;
+        this.saveError = 'Failed to save. Please try again.';
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -235,12 +228,14 @@ export class PorterProfileComponent implements OnInit {
       licenceNumber: this.profile.licenceNumber ?? '',
       licenceExpiry: this.profile.licenceExpiry ?? ''
     };
+    this.saveError = '';
     this.showEditVehicle = true;
   }
 
   saveVehicle(): void {
     if (!this.profile) return;
     this.isSavingVehicle = true;
+    this.saveError = '';
     this.http.put<PorterProfile>(`${this.apiBase}/users/${this.profile.userId}`, {
       vehicleType:   this.editVehicle.vehicleType,
       vehicleModel:  this.editVehicle.vehicleModel,
@@ -249,24 +244,26 @@ export class PorterProfileComponent implements OnInit {
       licenceExpiry: this.editVehicle.licenceExpiry
     }).subscribe({
       next: () => {
-        if (this.profile) {
-          this.profile.vehicleModel  = this.editVehicle.vehicleModel;
-          this.profile.vehicleNumber = this.editVehicle.vehicleNumber;
-          this.profile.vehicleType   = this.editVehicle.vehicleType;
-          this.profile.licenceNumber = this.editVehicle.licenceNumber;
-          this.profile.licenceExpiry = this.editVehicle.licenceExpiry;
-        }
-        this.isSavingVehicle   = false;
-        this.showEditVehicle   = false;
-        this.showSaveSuccess('Vehicle details updated!');
+        this.userService.getPorterProfileById(this.profile!.userId).subscribe(p => {
+          this.profile = p;
+          this.generateInitials(p.name);
+          this.isSavingVehicle = false;
+          this.showEditVehicle = false;
+          this.showSaveSuccess('Vehicle details updated!');
+          this.cdr.detectChanges();
+        });
       },
-      error: () => { this.isSavingVehicle = false; }
+      error: () => {
+        this.isSavingVehicle = false;
+        this.saveError = 'Failed to save. Please try again.';
+        this.cdr.detectChanges();
+      }
     });
   }
 
   showSaveSuccess(msg: string): void {
     this.saveSuccess = msg;
-    setTimeout(() => this.saveSuccess = '', 3000);
+    setTimeout(() => { this.saveSuccess = ''; this.cdr.detectChanges(); }, 3000);
   }
 
   // ── Preferences ───────────────────────────────────────────────────────────
@@ -284,12 +281,13 @@ export class PorterProfileComponent implements OnInit {
   toggleStatus(): void {
     if (!this.profile || this.isToggling) return;
     this.isToggling = true;
-    this.isOnline = !this.isOnline;
-    this.statusToast = this.isOnline ? "You're now Online" : "You went Offline";
-    setTimeout(() => { this.isToggling = false; }, 600);
-    setTimeout(() => { this.statusToast = ''; }, 2800);
-    this.userService.updatePorterStatus(this.profile.userId, this.isOnline).subscribe({
-      error: () => { this.isOnline = !this.isOnline; }
+    const next = !this.isOnline;
+    this.statusService.set(next);
+    this.statusToast = next ? "You're now Online" : "You went Offline";
+    setTimeout(() => { this.isToggling = false; this.cdr.detectChanges(); }, 600);
+    setTimeout(() => { this.statusToast = ''; this.cdr.detectChanges(); }, 2800);
+    this.userService.updatePorterStatus(this.profile.userId, next).subscribe({
+      error: () => { this.statusService.set(!next); this.cdr.detectChanges(); }
     });
   }
 

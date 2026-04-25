@@ -55,9 +55,6 @@ interface WalletData {
   lastUpdated: string;
 }
 
-type WithdrawMethod = 'upi' | 'netbanking' | 'bank';
-type UpiApp = 'phonepe' | 'gpay' | 'bharatpe' | 'paytm' | 'other';
-
 @Component({
   selector: 'porter-dashboard',
   standalone: true,
@@ -73,7 +70,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
 
   porterProfile: PorterProfile | null = null;
   walletData: WalletData | null = null;
-  isOnline      = false;
+  get isOnline(): boolean { return this.statusService.isOnline; }
   isToggling    = false;
   statusToast   = '';
   earningsToday = 0;
@@ -134,32 +131,6 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   private readonly NAV_MAP_KEY = 'cg_nav_map_order_id';
   @ViewChild('navMapEl') navMapElRef!: ElementRef<HTMLDivElement>;
 
-  // Withdraw modal
-  showWithdrawModal = false;
-  withdrawAmount    = '';
-  withdrawMethod: WithdrawMethod = 'upi';
-  selectedUpiApp: UpiApp | '' = '';
-  upiId         = '';
-  selectedBank  = '';
-  accountNumber = '';
-  ifscCode      = '';
-  withdrawing   = false;
-  withdrawSuccess = false;
-
-  readonly upiApps: { id: UpiApp; label: string; color: string; logo: string }[] = [
-    { id: 'phonepe',  label: 'PhonePe',   color: '#5f259f', logo: '📲' },
-    { id: 'gpay',     label: 'Google Pay', color: '#4285f4', logo: '💳' },
-    { id: 'bharatpe', label: 'BharatPe',  color: '#00bcd4', logo: '🏦' },
-    { id: 'paytm',    label: 'Paytm',     color: '#002970', logo: '💰' },
-    { id: 'other',    label: 'Other UPI', color: '#64748b', logo: '📱' },
-  ];
-
-  readonly banks = [
-    'State Bank of India', 'HDFC Bank', 'ICICI Bank', 'Axis Bank',
-    'Kotak Mahindra Bank', 'Punjab National Bank', 'Bank of Baroda',
-    'Canara Bank', 'Union Bank of India', 'IndusInd Bank',
-  ];
-
   private sseSub: Subscription | null = null;
   private pollSub: Subscription | null = null;
   private readonly apiBase = 'http://localhost:8081/api';
@@ -213,7 +184,6 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
       next: (profile: PorterProfile) => {
         this.porterProfile = profile;
         this.statusService.init(profile.userId);
-        this.isOnline = this.statusService.isOnline;
         this.generateInitials(profile.name);
         this.loadWallet(profile.userId);
         this.loadDeliveries(profile.userId);
@@ -491,7 +461,6 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     if (!this.porterProfile || this.isToggling) return;
     this.isToggling = true;
     const newStatus = !this.isOnline;
-    this.isOnline   = newStatus;
     this.statusService.set(newStatus);
 
     if (!newStatus) { this.orderRequests = []; this.notificationCount = 0; }
@@ -762,45 +731,6 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
 
   isPickedUp(order: DeliveryOrder): boolean { return order.status === 'PICKED_UP'; }
   isArrived(order: DeliveryOrder): boolean  { return order.status === 'ARRIVED_AT_PICKUP'; }
-
-  // ── Withdraw modal ────────────────────────────────────────────────────────
-  openWithdraw(): void {
-    this.withdrawAmount  = '';
-    this.withdrawMethod  = 'upi';
-    this.selectedUpiApp  = '';
-    this.upiId           = '';
-    this.selectedBank    = '';
-    this.accountNumber   = '';
-    this.ifscCode        = '';
-    this.withdrawSuccess = false;
-    this.showWithdrawModal = true;
-  }
-
-  closeWithdraw(): void { this.showWithdrawModal = false; }
-
-  get withdrawMax(): number { return this.walletBalance; }
-
-  get withdrawValid(): boolean {
-    const amt = parseFloat(this.withdrawAmount);
-    if (isNaN(amt) || amt <= 0 || amt > this.walletBalance) return false;
-    if (this.withdrawMethod === 'upi')        return !!this.selectedUpiApp && this.upiId.includes('@');
-    if (this.withdrawMethod === 'netbanking') return !!this.selectedBank;
-    if (this.withdrawMethod === 'bank')       return this.accountNumber.length >= 9 && this.ifscCode.length === 11;
-    return false;
-  }
-
-  submitWithdraw(): void {
-    if (!this.withdrawValid || this.withdrawing) return;
-    this.withdrawing = true;
-    setTimeout(() => {
-      const amt          = parseFloat(this.withdrawAmount);
-      this.walletBalance -= amt;
-      this.withdrawing   = false;
-      this.withdrawSuccess = true;
-      if (this.porterProfile) this.loadWallet(this.porterProfile.userId);
-      setTimeout(() => this.closeWithdraw(), 2000);
-    }, 1800);
-  }
 
   // ── Navigation Map ────────────────────────────────────────────────────────
   openNavMap(order: DeliveryOrder): void {

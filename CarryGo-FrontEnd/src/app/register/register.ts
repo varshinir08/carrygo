@@ -19,19 +19,19 @@ user = {
   countryCode: '+91',
   password: '',
   confirmPassword: '',
-  role: 'user',
-  agree: false
+  role: 'user'
 };
+
+get isCommuter(): boolean { return this.user.role === 'commuter'; }
+
+showPassword = false;
+showConfirmPassword = false;
 
 constructor(private authService: AuthService) {}
 
   onSubmit() {
     if (this.user.password !== this.user.confirmPassword) {
       alert('Passwords do not match!');
-      return;
-    }
-    if (!this.user.agree) {
-      alert('You must agree to the terms before registering.');
       return;
     }
 

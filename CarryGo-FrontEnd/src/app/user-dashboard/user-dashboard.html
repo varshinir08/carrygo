@@ -21,8 +21,7 @@
             d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/>
         </svg>
         My Deliveries
-        <span *ngIf="getActiveDeliveries().length" class="nav-badge">{{ getActiveDeliveries().length }}</span>
-        <span *ngIf="unreadCount > 0" class="nav-badge notif-badge">{{ unreadCount }}</span>
+        <span *ngIf="deliveries.length" class="nav-badge">{{ deliveries.length }}</span>
       </a>
 
       <a class="nav-item" [class.active]="activeSection === 'wallet'" (click)="setSection('wallet')">
@@ -78,6 +77,7 @@
             <ng-container *ngSwitchCase="'home'">Welcome back, {{ getFirstName() }} 👋</ng-container>
             <ng-container *ngSwitchCase="'deliveries'">My Deliveries</ng-container>
             <ng-container *ngSwitchCase="'wallet'">Wallet</ng-container>
+            <ng-container *ngSwitchCase="'intercity'">Intercity Courier</ng-container>
             <ng-container *ngSwitchCase="'services'">Services</ng-container>
           </ng-container>
         </h1>
@@ -763,140 +763,86 @@
     <!-- ──────── SERVICES SECTION ──────── -->
     <div *ngIf="activeSection === 'services'" class="section-content svc-page">
 
-      <!-- Hero Banner -->
-      <div class="svc-hero">
-        <div class="svc-hero-text">
-          <h2 class="svc-hero-title">Everything you need, in one place</h2>
-          <p class="svc-hero-subtitle">CarryGo brings together smart delivery, real-time tracking, secure payments, and intercity courier services — all from this dashboard.</p>
-        </div>
-        <div class="svc-hero-icon">🚀</div>
-      </div>
+      <!-- 2x2 Service Cards -->
+      <div class="svc-cards-grid">
 
-      <!-- Core Features Grid -->
-      <div class="svc-section-label">Core Features</div>
-      <div class="svc-grid">
-
-        <div class="svc-card svc-card--blue" (click)="setSection('home')">
-          <div class="svc-card-icon">📦</div>
-          <div class="svc-card-body">
-            <div class="svc-card-title">Send a Parcel</div>
-            <div class="svc-card-desc">Book a same-city delivery instantly. Enter pickup and drop, choose your vehicle, and a porter comes to you.</div>
-            <div class="svc-card-tags">
-              <span class="svc-tag">Instant Booking</span>
-              <span class="svc-tag">Door-to-Door</span>
+        <div class="svc-card2 svc-card2--blue" (click)="setSection('home')">
+          <div class="svc-card2-header">
+            <div class="svc-card2-icon-wrap">
+              <span class="svc-card2-icon">📦</span>
             </div>
+            <div class="svc-card2-title">Send a Parcel</div>
+            <div class="svc-card2-desc">Instant same-city pickup &amp; drop. A porter at your door in minutes.</div>
           </div>
-          <div class="svc-card-arrow">→</div>
+          <button class="svc-card2-btn svc-btn--blue">Book now →</button>
         </div>
 
-        <div class="svc-card svc-card--purple" (click)="setSection('intercity')">
-          <div class="svc-card-icon">🌍</div>
-          <div class="svc-card-body">
-            <div class="svc-card-title">Intercity Courier</div>
-            <div class="svc-card-desc">Compare DTDC, Blue Dart, FedEx, Delhivery and more — sorted by price, speed, or rating. Book directly from here.</div>
-            <div class="svc-card-tags">
-              <span class="svc-tag">8+ Courier Partners</span>
-              <span class="svc-tag">Best Rates</span>
+        <div class="svc-card2 svc-card2--purple" (click)="setSection('intercity')">
+          <div class="svc-card2-header">
+            <div class="svc-card2-icon-wrap">
+              <span class="svc-card2-icon">🌍</span>
             </div>
+            <div class="svc-card2-title">Intercity Courier</div>
+            <div class="svc-card2-desc">Compare DTDC, Blue Dart, FedEx &amp; more — best price, fastest speed.</div>
           </div>
-          <div class="svc-card-arrow">→</div>
+          <button class="svc-card2-btn svc-btn--purple">Compare →</button>
         </div>
 
-        <div class="svc-card svc-card--green">
-          <div class="svc-card-icon">📅</div>
-          <div class="svc-card-body">
-            <div class="svc-card-title">Schedule Delivery</div>
-            <div class="svc-card-desc">Plan ahead and schedule a delivery for a future date and time that works best for you and the receiver.</div>
-            <div class="svc-card-tags">
-              <span class="svc-tag">Flexible Timing</span>
-              <span class="svc-tag">Pre-book</span>
+        <div class="svc-card2 svc-card2--green" [routerLink]="['/schedule-delivery', user.userId]">
+          <div class="svc-card2-header">
+            <div class="svc-card2-icon-wrap">
+              <span class="svc-card2-icon">📅</span>
             </div>
+            <div class="svc-card2-title">Schedule Delivery</div>
+            <div class="svc-card2-desc">Pre-book a delivery for a future date and preferred time slot.</div>
           </div>
-          <div class="svc-card-arrow">→</div>
+          <button class="svc-card2-btn svc-btn--green">Schedule →</button>
         </div>
 
-        <div class="svc-card svc-card--orange" (click)="setSection('wallet')">
-          <div class="svc-card-icon">👛</div>
-          <div class="svc-card-body">
-            <div class="svc-card-title">CarryGo Wallet</div>
-            <div class="svc-card-desc">Top up via UPI or Net Banking and pay seamlessly for every delivery. Track all your transaction history in one place.</div>
-            <div class="svc-card-tags">
-              <span class="svc-tag">UPI & Net Banking</span>
-              <span class="svc-tag">Instant Topup</span>
+        <div class="svc-card2 svc-card2--orange" (click)="setSection('wallet')">
+          <div class="svc-card2-header">
+            <div class="svc-card2-icon-wrap">
+              <span class="svc-card2-icon">👛</span>
             </div>
+            <div class="svc-card2-title">CarryGo Wallet</div>
+            <div class="svc-card2-desc">Balance: <strong>₹{{ wallet.balance | number:'1.0-0' }}</strong> — Top up via UPI or Net Banking.</div>
           </div>
-          <div class="svc-card-arrow">→</div>
-        </div>
-
-      </div>
-
-      <!-- Smart Features -->
-      <div class="svc-section-label" style="margin-top:28px;">Smart Technology</div>
-      <div class="svc-features-row">
-
-        <div class="svc-feature-card">
-          <div class="svc-feature-icon" style="background:#e0f2fe; color:#0369a1;">📍</div>
-          <div class="svc-feature-title">Live Map Tracking</div>
-          <div class="svc-feature-desc">Watch your porter's route in real-time on an interactive Leaflet map with distance and ETA.</div>
-        </div>
-
-        <div class="svc-feature-card">
-          <div class="svc-feature-icon" style="background:#fef3c7; color:#d97706;">⚡</div>
-          <div class="svc-feature-title">Dynamic Fare Engine</div>
-          <div class="svc-feature-desc">Smart pricing based on distance, weight, vehicle type, time-of-day surge, and zone surcharges.</div>
-        </div>
-
-        <div class="svc-feature-card">
-          <div class="svc-feature-icon" style="background:#f0fdf4; color:#16a34a;">🔐</div>
-          <div class="svc-feature-title">OTP Verification</div>
-          <div class="svc-feature-desc">Your package is only handed to the porter after a 4-digit OTP is verified at pickup — zero risk of wrong delivery.</div>
-        </div>
-
-        <div class="svc-feature-card">
-          <div class="svc-feature-icon" style="background:#fdf4ff; color:#9333ea;">💬</div>
-          <div class="svc-feature-title">Live Chat</div>
-          <div class="svc-feature-desc">Chat directly with your assigned porter in real-time via WebSocket — no need to share phone numbers.</div>
-        </div>
-
-        <div class="svc-feature-card">
-          <div class="svc-feature-icon" style="background:#fff1f2; color:#e11d48;">🔔</div>
-          <div class="svc-feature-title">Real-time Notifications</div>
-          <div class="svc-feature-desc">Get instant updates when your porter accepts, arrives, picks up, or delivers your parcel.</div>
-        </div>
-
-        <div class="svc-feature-card">
-          <div class="svc-feature-icon" style="background:#f0f9ff; color:#0284c7;">🤝</div>
-          <div class="svc-feature-title">Smart Porter Matching</div>
-          <div class="svc-feature-desc">Our broadcast engine matches your delivery to nearby online porters whose routes overlap yours — fast and efficient.</div>
+          <button class="svc-card2-btn svc-btn--orange">Manage →</button>
         </div>
 
       </div>
 
       <!-- How it works -->
-      <div class="svc-section-label" style="margin-top:28px;">How It Works</div>
-      <div class="svc-steps-row">
-        <div class="svc-step">
-          <div class="svc-step-num">1</div>
-          <div class="svc-step-title">Enter Locations</div>
-          <div class="svc-step-desc">Enter pickup and drop address or pin directly on the map.</div>
+      <div class="svc-how-label">How it works</div>
+      <div class="svc-steps-track">
+        <div class="svc-track-line"></div>
+        <div class="svc-step-card">
+          <div class="svc-step-dot">1</div>
+          <div class="svc-step-text">
+            <div class="svc-step-name">Enter Locations</div>
+            <div class="svc-step-sub">Type or pin on map</div>
+          </div>
         </div>
-        <div class="svc-step-arrow">→</div>
-        <div class="svc-step">
-          <div class="svc-step-num">2</div>
-          <div class="svc-step-title">Get Fare Estimate</div>
-          <div class="svc-step-desc">Instant price breakdown with base fare, distance cost, and any surge.</div>
+        <div class="svc-step-card">
+          <div class="svc-step-dot">2</div>
+          <div class="svc-step-text">
+            <div class="svc-step-name">Get Estimate</div>
+            <div class="svc-step-sub">Live fare breakdown</div>
+          </div>
         </div>
-        <div class="svc-step-arrow">→</div>
-        <div class="svc-step">
-          <div class="svc-step-num">3</div>
-          <div class="svc-step-title">Porter Assigned</div>
-          <div class="svc-step-desc">Nearby porters are broadcast your request. One accepts within seconds.</div>
+        <div class="svc-step-card">
+          <div class="svc-step-dot">3</div>
+          <div class="svc-step-text">
+            <div class="svc-step-name">Porter Assigned</div>
+            <div class="svc-step-sub">Matched in seconds</div>
+          </div>
         </div>
-        <div class="svc-step-arrow">→</div>
-        <div class="svc-step">
-          <div class="svc-step-num">4</div>
-          <div class="svc-step-title">OTP & Pickup</div>
-          <div class="svc-step-desc">Share OTP at pickup. Track live until your parcel is delivered.</div>
+        <div class="svc-step-card">
+          <div class="svc-step-dot">4</div>
+          <div class="svc-step-text">
+            <div class="svc-step-name">Track &amp; Deliver</div>
+            <div class="svc-step-sub">Live map + OTP</div>
+          </div>
         </div>
       </div>
 
@@ -904,14 +850,6 @@
 
     <!-- ════════════════════ INTERCITY SECTION ════════════════════ -->
     <div *ngIf="activeSection === 'intercity'" class="section-content intercity-section">
-
-      <!-- Header -->
-      <div class="intercity-header">
-        <div class="intercity-header-text">
-          <h2 class="intercity-title">Intercity Courier Services</h2>
-          <p class="intercity-subtitle">Compare and book from India's top courier partners — fast, reliable, affordable.</p>
-        </div>
-      </div>
 
       <!-- Search Bar -->
       <div class="intercity-search-bar">
@@ -976,75 +914,56 @@
       <!-- Courier Cards Grid -->
       <div *ngIf="!intercityLoading && !intercityError && intercityCouriers.length > 0" class="intercity-grid">
         <div class="intercity-card" *ngFor="let courier of intercityCouriers"
-             [style.border-top]="'3px solid ' + courier.accentColor">
-
-          <!-- Badge -->
-          <div *ngIf="courier.badge" class="intercity-badge"
-               [style.background]="courier.accentColor">{{ courier.badge }}</div>
+             [style.border-left]="'3px solid ' + courier.accentColor">
 
           <!-- Card Header -->
-          <div class="ic-header" [style.background]="courier.bgColor">
-            <div class="ic-logo" [style.color]="courier.accentColor">{{ courier.logoEmoji }}</div>
-            <div class="ic-meta">
-              <h3 class="ic-name">{{ courier.name }}</h3>
-              <p class="ic-tagline">{{ courier.tagline }}</p>
+          <div class="ic-header-row">
+            <div class="ic-logo-sm" [style.color]="courier.accentColor">{{ courier.logoEmoji }}</div>
+            <div class="ic-name-col">
+              <div class="ic-name-badge-row">
+                <span class="ic-name">{{ courier.name }}</span>
+                <div *ngIf="courier.badge" class="intercity-badge-sm" [style.background]="courier.accentColor">{{ courier.badge }}</div>
+              </div>
+              <div class="ic-stars-inline">
+                <span *ngFor="let star of getStarArray(courier.rating)" class="ic-star" [class.filled]="star <= courier.rating">★</span>
+                <span class="ic-rating-val">{{ courier.rating }}</span>
+                <span class="ic-reviews-sm">({{ formatReviews(courier.reviews) }})</span>
+              </div>
             </div>
           </div>
 
-          <!-- Rating -->
-          <div class="ic-rating">
-            <div class="ic-stars">
-              <span *ngFor="let star of getStarArray(courier.rating)"
-                    class="ic-star"
-                    [class.filled]="star <= courier.rating">★</span>
-            </div>
-            <span class="ic-rating-val">{{ courier.rating }}</span>
-            <span class="ic-reviews">({{ formatReviews(courier.reviews) }} reviews)</span>
-          </div>
-
-          <!-- Description -->
-          <p class="ic-desc">{{ courier.description }}</p>
+          <!-- Tagline -->
+          <p class="ic-tagline-text">{{ courier.tagline }}</p>
 
           <!-- Pricing Row -->
-          <div class="ic-pricing">
-            <div class="ic-price-block">
-              <span class="ic-price-label">Starting at</span>
+          <div class="ic-pricing-row">
+            <div class="ic-price-cell">
+              <span class="ic-price-label">From</span>
               <span class="ic-price-val" [style.color]="courier.accentColor">₹{{ courier.basePrice }}</span>
             </div>
-            <div class="ic-price-divider"></div>
-            <div class="ic-price-block">
+            <div class="ic-price-cell">
               <span class="ic-price-label">Per kg</span>
               <span class="ic-price-val" [style.color]="courier.accentColor">₹{{ courier.pricePerKg }}</span>
             </div>
-            <div class="ic-price-divider"></div>
-            <div class="ic-price-block">
+            <div class="ic-price-cell">
               <span class="ic-price-label">Delivery</span>
               <span class="ic-price-val">{{ courier.estimatedDays }} days</span>
             </div>
           </div>
 
-          <!-- Features -->
-          <div class="ic-features">
-            <span class="ic-feature-tag" *ngFor="let feature of courier.features"
+          <!-- Top features (max 2) -->
+          <div class="ic-features-row">
+            <span class="ic-feature-chip"
+                  *ngFor="let f of courier.features.slice(0, 2)"
                   [style.color]="courier.accentColor"
-                  [style.border-color]="courier.accentColor">
-              {{ feature }}
-            </span>
-          </div>
-
-          <!-- Cities -->
-          <div class="ic-cities">
-            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="13" height="13">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-            </svg>
-            <span>{{ courier.cities.slice(0,4).join(', ') }}{{ courier.cities.length > 4 ? ' +more' : '' }}</span>
+                  [style.border-color]="courier.accentColor">{{ f }}</span>
           </div>
 
           <!-- Book Button -->
-          <a class="ic-book-btn" [href]="courier.serviceUrl" target="_blank" rel="noopener noreferrer"
+          <a class="ic-book-btn-sm" [href]="courier.serviceUrl" target="_blank" rel="noopener noreferrer"
              [style.background]="courier.accentColor">
             Book on {{ courier.name }}
-            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" width="14" height="14">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" width="12" height="12">
               <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
           </a>

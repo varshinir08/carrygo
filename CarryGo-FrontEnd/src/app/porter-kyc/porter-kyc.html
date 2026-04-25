@@ -26,12 +26,6 @@
         </svg>
         <span>KYC Verification</span>
       </a>
-      <a class="nav-item" [routerLink]="porterProfile ? ['/porter-routes', porterProfile.userId] : ['/porter-routes']" routerLinkActive="active">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 12h18M3 6l9-3 9 3M3 18l9 3 9-3"/>
-        </svg>
-        <span>My Routes</span>
-      </a>
       <a class="nav-item" [routerLink]="porterProfile ? ['/porter-profile', porterProfile.userId] : ['/porter-profile']" routerLinkActive="active">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
@@ -48,7 +42,7 @@
     <header class="top-header">
       <h2 class="header-title">KYC Verification</h2>
       <div class="header-actions">
-        <div class="status-switch-wrap" [class.is-online]="isOnline" [class.toggling]="isToggling" (click)="toggleStatus()" role="switch" [attr.aria-checked]="isOnline" tabindex="0" (keydown.space)="toggleStatus()">
+        <div class="status-switch-wrap" [class.is-online]="isOnline" [class.toggling]="isToggling" (click)="$event.stopPropagation(); toggleStatus()" role="switch" [attr.aria-checked]="isOnline" tabindex="0" (keydown.space)="$event.stopPropagation(); toggleStatus()">
           <div class="switch-track">
             <span class="switch-label-off">Offline</span>
             <span class="switch-label-on">Online</span>
@@ -63,7 +57,7 @@
         <div class="earnings-chip">
           <span>&#8377;</span>
           <span>{{ earningsToday | number:'1.0-0' }}</span>
-          <span class="earn-lbl">today</span>
+          <span class="earn-lbl">wallet</span>
         </div>
         <button class="icon-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
@@ -91,7 +85,17 @@
       </div>
     </header>
 
-    <div class="kyc-body">
+    <div *ngIf="!isOnline" class="offline-placeholder">
+      <div class="offline-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" width="48" height="48">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728M5.636 5.636a9 9 0 000 12.728M9 10a3 3 0 116 0M3 3l18 18"/>
+        </svg>
+      </div>
+      <p class="offline-msg">You're offline</p>
+      <p class="offline-sub">Toggle online to access KYC Verification</p>
+    </div>
+
+    <div class="kyc-body" *ngIf="isOnline">
 
       <!-- ── Stepper ──────────────────────────────────────────────── -->
       <div class="stepper-wrap">

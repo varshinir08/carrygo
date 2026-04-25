@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface IntercityCourier {
@@ -29,11 +29,7 @@ export class IntercityService {
 
   constructor(private http: HttpClient) {}
 
-  getCouriers(fromCity?: string, toCity?: string, sortBy?: string): Observable<IntercityCourier[]> {
-    let params = new HttpParams();
-    if (fromCity) params = params.set('fromCity', fromCity);
-    if (toCity)   params = params.set('toCity', toCity);
-    if (sortBy)   params = params.set('sortBy', sortBy);
-    return this.http.get<IntercityCourier[]>(`${this.base}/couriers`, { params });
+  getCouriers(): Observable<IntercityCourier[]> {
+    return this.http.get<IntercityCourier[]>(`${this.base}/couriers`);
   }
 }

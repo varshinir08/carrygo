@@ -1,48 +1,26 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { Injectable } from '@angular/core';
 
 /**
  * Singleton service — survives Angular route changes.
- * Holds the porter's online/offline state in memory + localStorage.
+ * Holds the porter's online/offline state in memory only.
+ * Starts offline on every fresh page load; only changes on explicit toggle.
  */
 @Injectable({ providedIn: 'root' })
 export class PorterStatusService {
 
   private _isOnline = false;
-  private _userId: number | null = null;
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
-
-  /** Call once after the profile is loaded to seed the initial value. */
-  init(userId: number): void {
-    this._userId = userId;
-    this._isOnline = this.read(userId);
-  }
+  /** Call once after the profile is loaded. No-op — exists so components can
+   *  signal "profile is ready" without needing extra logic.
+   *  The in-memory _isOnline persists across route changes and resets on page reload. */
+  init(_userId: number): void { }
 
   get isOnline(): boolean {
     return this._isOnline;
   }
 
-  /** Set new status and persist immediately. */
+  /** Set new status (called only from an explicit toggle click). */
   set(value: boolean): void {
     this._isOnline = value;
-    if (this._userId !== null) this.write(this._userId, value);
-  }
-
-  private key(userId: number): string {
-    return `carrygo_porter_online_${userId}`;
-  }
-
-  private read(userId: number): boolean {
-    if (!isPlatformBrowser(this.platformId)) return false;
-    try {
-      const v = localStorage.getItem(this.key(userId));
-      return v === 'true';
-    } catch { return false; }
-  }
-
-  private write(userId: number, value: boolean): void {
-    if (!isPlatformBrowser(this.platformId)) return;
-    try { localStorage.setItem(this.key(userId), String(value)); } catch {}
   }
 }

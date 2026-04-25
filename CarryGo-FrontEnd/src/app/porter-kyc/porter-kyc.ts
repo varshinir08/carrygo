@@ -1,10 +1,11 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user-service';
+import { PorterStatusService } from '../services/porter-status.service';
 
 export interface KycFormData {
   // Step 1 – Personal
@@ -67,7 +68,7 @@ export class PorterKycComponent implements OnInit {
 
   porterProfile: any = null;
   userInitials = '';
-  isOnline = false;
+  get isOnline(): boolean { return this.statusService.isOnline; }
   isToggling = false;
   statusToast = '';
   earningsToday = 0;
@@ -114,7 +115,9 @@ export class PorterKycComponent implements OnInit {
     private authService: AuthService,
     private userService: UserService,
     private router: Router,
-    private http: HttpClient
+    private http: HttpClient,
+    private statusService: PorterStatusService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -123,13 +126,17 @@ export class PorterKycComponent implements OnInit {
     this.userService.getPorterProfileByEmail(email).subscribe({
       next: (p: any) => {
         this.porterProfile = p;
-        this.isOnline = p.isOnline ?? false;
+        this.statusService.init(p.userId);
         this.generateInitials(p.name);
         this.form.fullName = p.name  ?? '';
         this.form.phone    = p.phone ?? '';
         this.form.email    = p.email ?? '';
+        this.cdr.detectChanges();
         this.userService.getWalletByUserId(p.userId).subscribe({
-          next: (w: any) => this.earningsToday = w.balance ?? 0
+          next: (w: any) => {
+            this.earningsToday = w.balance ?? 0;
+            this.cdr.detectChanges();
+          }
         });
       },
       error: () => this.router.navigate(['/login'])
@@ -274,8 +281,14 @@ export class PorterKycComponent implements OnInit {
         this.isSubmitting = false;
         this.currentStep = 6;
         this.submitted = true;
+        this.cdr.detectChanges();
       },
-      error: () => { this.isSubmitting = false; this.currentStep = 6; this.submitted = true; }
+      error: () => {
+        this.isSubmitting = false;
+        this.currentStep = 6;
+        this.submitted = true;
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -288,12 +301,13 @@ export class PorterKycComponent implements OnInit {
   toggleStatus(): void {
     if (!this.porterProfile || this.isToggling) return;
     this.isToggling = true;
-    this.isOnline = !this.isOnline;
-    this.statusToast = this.isOnline ? "You're now Online" : "You went Offline";
-    setTimeout(() => { this.isToggling = false; }, 600);
-    setTimeout(() => { this.statusToast = ''; }, 2800);
-    this.userService.updatePorterStatus(this.porterProfile.userId, this.isOnline).subscribe({
-      error: () => { this.isOnline = !this.isOnline; }
+    const next = !this.isOnline;
+    this.statusService.set(next);
+    this.statusToast = next ? "You're now Online" : "You went Offline";
+    setTimeout(() => { this.isToggling = false; this.cdr.detectChanges(); }, 600);
+    setTimeout(() => { this.statusToast = ''; this.cdr.detectChanges(); }, 2800);
+    this.userService.updatePorterStatus(this.porterProfile.userId, next).subscribe({
+      error: () => { this.statusService.set(!next); this.cdr.detectChanges(); }
     });
   }
 

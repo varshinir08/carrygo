@@ -22,7 +22,7 @@
     <div class="form-group">
       <label for="name">Full Name</label>
       <input id="name" [(ngModel)]="user.name" name="name"
-             placeholder="👤 Full Name"
+             placeholder="Full Name"
              required maxlength="20" #name="ngModel"/>
       <div class="error" *ngIf="name.errors?.['maxlength'] && name.touched">
         Name must be less than 20 characters
@@ -33,7 +33,7 @@
     <div class="form-group">
       <label for="email">Email Address</label>
       <input id="email" [(ngModel)]="user.email" name="email"
-             placeholder="✉️ Email Address"
+             placeholder="Email Address"
              required pattern="^[a-zA-Z0-9._%+-]+@gmail\.com$" #email="ngModel"/>
       <div class="error" *ngIf="email.errors?.['pattern'] && email.touched">
         Must be a valid Gmail (e.g. user@gmail.com)
@@ -44,12 +44,12 @@
     <div class="form-group phone-group">
       <label for="phone">Phone Number</label>
       <select [(ngModel)]="user.countryCode" name="countryCode" required>
-        <option value="+91">🇮🇳 India (+91)</option>
-        <option value="+1">🇺🇸 USA (+1)</option>
-        <option value="+44">🇬🇧 UK (+44)</option>
+        <option value="+91">India (+91)</option>
+        <option value="+1">USA (+1)</option>
+        <option value="+44">UK (+44)</option>
       </select>
       <input id="phone" [(ngModel)]="user.phone" name="phone"
-             placeholder="📱 Phone Number"
+             placeholder="Phone Number"
              required pattern="^[0-9]{10}$" #phone="ngModel"/>
       <div class="error" *ngIf="phone.errors?.['pattern'] && phone.touched">
         Phone number must be 10 digits
@@ -59,9 +59,19 @@
     <!-- Password -->
     <div class="form-group">
       <label for="password">Password</label>
-      <input id="password" [(ngModel)]="user.password" name="password"
-             type="password" placeholder="🔒 Password"
-             required minlength="6" #password="ngModel"/>
+      <div class="password-wrapper">
+        <input id="password" [(ngModel)]="user.password" name="password"
+               [type]="showPassword ? 'text' : 'password'" placeholder="Password"
+               required minlength="6" #password="ngModel"/>
+        <button type="button" class="pwd-toggle" (click)="showPassword = !showPassword" tabindex="-1">
+          <svg *ngIf="showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <svg *ngIf="!showPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </button>
+      </div>
       <div class="error" *ngIf="password.errors?.['minlength'] && password.touched">
         Password must be at least 6 characters
       </div>
@@ -70,47 +80,32 @@
     <!-- Confirm Password -->
     <div class="form-group">
       <label for="confirmPassword">Confirm Password</label>
-      <input id="confirmPassword" [(ngModel)]="user.confirmPassword" name="confirmPassword"
-             type="password" placeholder="🔒 Confirm Password"
-             required #confirmPassword="ngModel"/>
+      <div class="password-wrapper">
+        <input id="confirmPassword" [(ngModel)]="user.confirmPassword" name="confirmPassword"
+               [type]="showConfirmPassword ? 'text' : 'password'" placeholder="Confirm Password"
+               required #confirmPassword="ngModel"/>
+        <button type="button" class="pwd-toggle" (click)="showConfirmPassword = !showConfirmPassword" tabindex="-1">
+          <svg *ngIf="showConfirmPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          <svg *ngIf="!showConfirmPassword" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </button>
+      </div>
       <div class="error" *ngIf="confirmPassword.invalid && confirmPassword.touched">
         Confirm password is required
       </div>
     </div>
 
     <!-- Commuter info banner -->
-    <div class="commuter-info" *ngIf="user.role === 'commuter'">
-      <span class="info-icon">🛈</span>
+    <div class="commuter-info" *ngIf="isCommuter">
       <span>Vehicle and licence details can be completed in the <strong>KYC section</strong> after registration.</span>
-    </div>
-
-    <!-- Terms checkbox -->
-    <div class="terms">
-      <label>
-        <input type="checkbox" [(ngModel)]="user.agree" name="agree" required #agree="ngModel"/>
-        I agree to CarryGo’s Terms of Service and Privacy Policy
-      </label>
-    </div>
-    <div class="error" *ngIf="!user.agree && registerForm.submitted">
-      You must agree before creating an account
     </div>
 
     <!-- Submit -->
     <button type="submit" class="btn-primary" [disabled]="registerForm.invalid">Create Account</button>
   </form>
-
-  <!-- Social buttons -->
-  <div class="alt-register">
-    <p class="or-text">or register with</p>
-    <div class="social-buttons">
-      <button class="btn-half btn-google">
-        <img src="./assets/images/google-logo.jpg" alt="Google" /> Google
-      </button>
-      <button class="btn-half btn-otp">
-        <img src="./assets/images/otp.jpg" alt="OTP" /> OTP
-      </button>
-    </div>
-  </div>
 
   <!-- Switch link -->
   <p class="switch-link">
