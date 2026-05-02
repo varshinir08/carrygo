@@ -12,6 +12,7 @@ import { of } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { Delivery } from '../services/delivery/delivery';
 import { MapPickerComponent, MapPickerResult } from '../map-picker/map-picker';
+import { ChatbotComponent } from '../chatbot/chatbot';
 
 type PackageSize  = 'small' | 'medium' | 'large';
 type DeliveryType = 'standard' | 'express';
@@ -28,7 +29,7 @@ const HISTORY_KEY = 'carrygo_location_history';
 @Component({
   selector: 'app-schedule-delivery',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, MapPickerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, MapPickerComponent, ChatbotComponent],
   templateUrl: './schedule-delivery.html',
   styleUrl: './schedule-delivery.css',
 })

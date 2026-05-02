@@ -3,11 +3,9 @@ package com.cts.mrfp.carrygo.service;
 import com.cts.mrfp.carrygo.dto.DeliveriesDTO;
 import com.cts.mrfp.carrygo.model.Deliveries;
 import com.cts.mrfp.carrygo.model.Notifications;
-import com.cts.mrfp.carrygo.model.PorterRoute;
 import com.cts.mrfp.carrygo.model.Users;
 import com.cts.mrfp.carrygo.repository.DeliveriesRepository;
 import com.cts.mrfp.carrygo.repository.NotificationsRepository;
-import com.cts.mrfp.carrygo.repository.PorterRouteRepository;
 import com.cts.mrfp.carrygo.repository.UsersRepository;
 import com.cts.mrfp.carrygo.util.DTOConverter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,8 +23,6 @@ public class DeliveriesService {
     @Autowired private UsersRepository usersRepo;
     @Autowired private WalletsService walletsService;
     @Autowired private NotificationsRepository notificationsRepo;
-    @Autowired private PorterRouteRepository routeRepo;
-    @Autowired private PorterRouteService routeService;
     @Autowired private WebSocketMessagingService wsService;
 
     // ── Create delivery ───────────────────────────────────────────────────────
@@ -80,22 +76,7 @@ public class DeliveriesService {
             .filter(u -> !hasActiveDelivery(u.getUserId()))
             .collect(Collectors.toList());
 
-        if (available.isEmpty()) return available;
-
-        if (delivery.getPickupLat() == null || delivery.getDropLat() == null) {
-            return available;
-        }
-
-        List<Users> routeMatched = available.stream().filter(porter -> {
-            List<PorterRoute> routes = routeRepo.findByPorterUserId(porter.getUserId());
-            if (routes.isEmpty()) return true;
-            return routes.stream().anyMatch(r ->
-                routeService.matchesDelivery(r,
-                    delivery.getPickupLat(), delivery.getPickupLng(),
-                    delivery.getDropLat(),   delivery.getDropLng()));
-        }).collect(Collectors.toList());
-
-        return routeMatched.isEmpty() ? available : routeMatched;
+        return available;
     }
 
     private boolean hasActiveDelivery(Integer porterId) {

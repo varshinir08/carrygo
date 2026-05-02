@@ -13,6 +13,7 @@ import { Delivery } from '../services/delivery/delivery';
 import { Wallet } from '../services/wallet/wallet';
 import { UserService } from '../services/user-service';
 import { MapPickerComponent, MapPickerResult } from '../map-picker/map-picker';
+import { ChatbotComponent } from '../chatbot/chatbot';
 import { FareService, FareEstimate } from '../services/fare.service';
 import { SseService } from '../services/sse.service';
 import { IntercityService, IntercityCourier } from '../services/intercity.service';
@@ -55,7 +56,7 @@ type BookingStep   = 'idle' | 'estimated' | 'confirming-surge' | 'booked';
 @Component({
   selector: 'app-user-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, MapPickerComponent],
+  imports: [CommonModule, FormsModule, RouterLink, MapPickerComponent, ChatbotComponent],
   templateUrl: './user-dashboard.html',
   styleUrl:    './user-dashboard.css',
 })
