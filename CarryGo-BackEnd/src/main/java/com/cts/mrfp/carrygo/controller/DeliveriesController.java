@@ -6,8 +6,6 @@ import com.cts.mrfp.carrygo.model.Users;
 import com.cts.mrfp.carrygo.dto.DeliveriesDTO;
 import com.cts.mrfp.carrygo.repository.UsersRepository;
 import com.cts.mrfp.carrygo.service.DeliveriesService;
-import com.cts.mrfp.carrygo.service.PorterRouteService;
-import com.cts.mrfp.carrygo.model.PorterRoute;
 import com.cts.mrfp.carrygo.util.DTOConverter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +21,6 @@ public class DeliveriesController {
 
     @Autowired private DeliveriesService deliveryService;
     @Autowired private UsersRepository usersRepository;
-    @Autowired private PorterRouteService routeService;
-    @Autowired private com.cts.mrfp.carrygo.repository.PorterRouteRepository porterRouteRepository;
 
     @PostMapping
     public ResponseEntity<?> createDelivery(@RequestBody DeliveriesDTO deliveryDTO) {
@@ -103,10 +99,7 @@ public class DeliveriesController {
         }
     }
 
-    /**
-     * Returns the count of online porters whose routes match the given coordinates.
-     * Used by the frontend to show "X porters available" without posting a delivery yet.
-     */
+    // Returns count of all online porters available
     @GetMapping("/matching-porters-count")
     public ResponseEntity<Integer> getMatchingPortersCount(
             @RequestParam(required = false) Float pickupLat,
@@ -114,55 +107,18 @@ public class DeliveriesController {
             @RequestParam(required = false) Float dropLat,
             @RequestParam(required = false) Float dropLng) {
 
-        if (pickupLat == null || dropLat == null) {
-            // No coordinates — count all online porters
-            long count = usersRepository.findByIsOnlineTrue().stream()
-                .filter(u -> u.getRole() != null && u.getRole().contains("porter"))
-                .count();
-            return ResponseEntity.ok((int) count);
-        }
-
-        List<com.cts.mrfp.carrygo.model.Users> onlinePorters = usersRepository.findByIsOnlineTrue().stream()
+        long count = usersRepository.findByIsOnlineTrue().stream()
             .filter(u -> u.getRole() != null && u.getRole().contains("porter"))
-            .collect(java.util.stream.Collectors.toList());
-
-        int count = 0;
-        for (com.cts.mrfp.carrygo.model.Users porter : onlinePorters) {
-            List<PorterRoute> routes = porterRouteRepository.findByPorterUserId(porter.getUserId());
-            if (routes.isEmpty()) {
-                count++; // porter with no routes sees all deliveries
-            } else {
-                boolean matches = routes.stream().anyMatch(r ->
-                    routeService.matchesDelivery(r, pickupLat, pickupLng, dropLat, dropLng));
-                if (matches) count++;
-            }
-        }
-        return ResponseEntity.ok(count);
+            .count();
+        return ResponseEntity.ok((int) count);
     }
 
-    // Get PENDING deliveries matched to a specific porter's routes
+    // Get all PENDING deliveries for a porter
     @GetMapping("/matched/{porterId}")
     public List<DeliveriesDTO> getMatchedDeliveries(@PathVariable Integer porterId) {
-        // Busy check removed: porters should always see pending requests.
-        // The /accept endpoint rejects double-booking on the server side.
-
-        List<Deliveries> pending = deliveryService.getAllAvailableDeliveries();
-        List<PorterRoute> routes = routeService.getRoutesByPorter(porterId);
-
-        return pending.stream()
-            .filter(d -> {
-                // Skip orders with no addresses — invalid/test data
-                if (d.getPickupAddress() == null || d.getPickupAddress().isBlank()
-                 || d.getDropAddress()   == null || d.getDropAddress().isBlank()) return false;
-                // No coords on delivery → show to everyone (fallback)
-                if (d.getPickupLat() == null || d.getDropLat() == null) return true;
-                // No routes set → show everything
-                if (routes.isEmpty()) return true;
-                // Match if any route fits
-                return routes.stream().anyMatch(r ->
-                    routeService.matchesDelivery(r, d.getPickupLat(), d.getPickupLng(),
-                                                    d.getDropLat(),   d.getDropLng()));
-            })
+        return deliveryService.getAllAvailableDeliveries().stream()
+            .filter(d -> d.getPickupAddress() != null && !d.getPickupAddress().isBlank()
+                      && d.getDropAddress()   != null && !d.getDropAddress().isBlank())
             .map(DTOConverter::convertDeliveriesToDTO)
             .collect(Collectors.toList());
     }
