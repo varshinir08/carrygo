@@ -371,3 +371,17 @@
   .sd-header { padding: 12px 16px; }
   .sd-body { padding: 20px 16px 40px; }
 }
+@media (max-width: 640px) {
+  .sd-dtype-cards { grid-template-columns: 1fr; }
+  .sd-slot-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .sd-header { padding: 10px 12px; }
+  .sd-body { padding: 14px 12px 40px; gap: 14px; }
+  .sd-card { padding: 14px; border-radius: 10px; }
+  .sd-slot-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .sd-submit-btn { padding: 12px; font-size: 14px; }
+}
+@media (max-width: 360px) {
+  .sd-slot-grid { grid-template-columns: 1fr; }
+}

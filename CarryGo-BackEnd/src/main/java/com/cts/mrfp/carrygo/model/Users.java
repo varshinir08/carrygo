@@ -40,6 +40,7 @@ public class Users {
     private String vehicleNumber;
     private String vehicleModel;
     private Boolean isOnline = false;
+    private Double avgRating;
 
     public Users() {}
 
@@ -90,4 +91,6 @@ public class Users {
     public void setVehicleModel(String vehicleModel) { this.vehicleModel = vehicleModel; }
     public Boolean getIsOnline() { return isOnline; }
     public void setIsOnline(Boolean isOnline) { this.isOnline = isOnline; }
+    public Double getAvgRating() { return avgRating; }
+    public void setAvgRating(Double avgRating) { this.avgRating = avgRating; }
 }

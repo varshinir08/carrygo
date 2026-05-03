@@ -8,6 +8,8 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user-service';
+import { of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Component({
   selector: 'porter-routes',
@@ -27,6 +29,9 @@ export class PorterRoutesComponent implements OnInit, OnDestroy, AfterViewChecke
   statusToast   = '';
   earningsToday = 0;
   showProfileDropdown = false;
+  showNotifPanel = false;
+  orderRequests: any[] = [];
+  notificationCount = 0;
 
   myRoutes: any[]  = [];
   showRouteModal   = false;
@@ -65,6 +70,7 @@ export class PorterRoutesComponent implements OnInit, OnDestroy, AfterViewChecke
           next: (w: any) => { this.earningsToday = w.balance ?? 0; }
         });
         this.loadRoutes(p.userId);
+        this.loadPendingOrders(p.userId);
       },
       error: () => this.router.navigate(['/login'])
     });
@@ -234,12 +240,26 @@ export class PorterRoutesComponent implements OnInit, OnDestroy, AfterViewChecke
     this.userInitials = parts.slice(0, 2).map((p: string) => p[0].toUpperCase()).join('');
   }
 
-  toggleProfileDropdown(): void { this.showProfileDropdown = !this.showProfileDropdown; }
+  toggleProfileDropdown(): void { this.showProfileDropdown = !this.showProfileDropdown; this.showNotifPanel = false; }
+
+  toggleNotifPanel(): void { this.showNotifPanel = !this.showNotifPanel; this.showProfileDropdown = false; }
+
+  loadPendingOrders(userId: number): void {
+    this.http.get<any[]>(`${this.apiBase}/deliveries/matched/${userId}`)
+      .pipe(catchError(() => of([] as any[])))
+      .subscribe(orders => {
+        this.orderRequests = orders.filter(o => o.pickupAddress?.trim() && o.dropAddress?.trim());
+        this.notificationCount = this.orderRequests.length;
+        this.cdr.detectChanges();
+      });
+  }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(e: MouseEvent): void {
     const el = document.querySelector('.profile-section');
     if (el && !el.contains(e.target as Node)) this.showProfileDropdown = false;
+    const notifEl = document.querySelector('.notif-wrap');
+    if (notifEl && !notifEl.contains(e.target as Node)) this.showNotifPanel = false;
   }
 
   logout(): void { this.authService.logout(); this.router.navigate(['/login']); }

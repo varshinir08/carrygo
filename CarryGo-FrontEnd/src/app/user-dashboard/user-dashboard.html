@@ -515,25 +515,6 @@
         <!-- RIGHT: Stats + Active Tracking -->
         <div class="right-col">
 
-          <div class="stats-row">
-            <div class="stat-chip">
-              <span class="stat-num">{{ deliveries.length }}</span>
-              <span class="stat-lbl">Total</span>
-            </div>
-            <div class="stat-chip">
-              <span class="stat-num orange">{{ getActiveDeliveries().length }}</span>
-              <span class="stat-lbl">Active</span>
-            </div>
-            <div class="stat-chip">
-              <span class="stat-num green">{{ getDeliveredCount() }}</span>
-              <span class="stat-lbl">Delivered</span>
-            </div>
-            <div class="stat-chip">
-              <span class="stat-num">₹{{ getTotalSpent() | number:'1.0-0' }}</span>
-              <span class="stat-lbl">Spent</span>
-            </div>
-          </div>
-
           <div class="active-tracker" *ngIf="getActiveDeliveries().length > 0">
             <div class="qa-header">
               <span class="live-dot"></span> Live Tracking
@@ -585,6 +566,7 @@
               </div>
             </div>
           </div>
+
 
         </div>
       </div>
@@ -669,7 +651,53 @@
                 </div>
               </div>
             </div>
+
+            <!-- Rate commuter button — DELIVERED + commuter assigned + not yet rated -->
+            <div *ngIf="(d.status||'').toUpperCase() === 'DELIVERED' && d.commuterId" class="rate-row">
+              <button *ngIf="!ratedDeliveryIds.has(d.deliveryId)"
+                      class="rate-btn"
+                      (click)="openRatingModal(d)">
+                &#9733; Rate Commuter
+              </button>
+              <span *ngIf="ratedDeliveryIds.has(d.deliveryId)" class="rated-badge">
+                &#9733; Rated
+              </span>
+            </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ──────── RATING MODAL ──────── -->
+    <div *ngIf="showRatingModal" class="rating-modal-overlay" (click)="closeRatingModal()">
+      <div class="rating-modal" (click)="$event.stopPropagation()">
+        <div class="rating-modal-header">
+          <h3>Rate Your Commuter</h3>
+          <button class="rating-modal-close" (click)="closeRatingModal()">&#10005;</button>
+        </div>
+        <div class="rating-modal-body">
+          <p class="rating-commuter-name">{{ ratingDelivery?.commuterName }}</p>
+          <div class="rating-stars">
+            <span *ngFor="let s of [1,2,3,4,5]"
+                  class="rating-star"
+                  [class.filled]="s <= ratingStars"
+                  (click)="setRatingStar(s)">&#9733;</span>
+          </div>
+          <p class="rating-hint" *ngIf="ratingStars === 0">Tap a star to rate</p>
+          <textarea class="rating-comment"
+                    [(ngModel)]="ratingComment"
+                    placeholder="Add a comment (optional)"
+                    rows="3">
+          </textarea>
+          <p *ngIf="ratingError" class="rating-error">{{ ratingError }}</p>
+        </div>
+        <div class="rating-modal-footer">
+          <button class="rating-cancel-btn" (click)="closeRatingModal()">Cancel</button>
+          <button class="rating-submit-btn"
+                  [disabled]="ratingStars < 1 || ratingSubmitting"
+                  (click)="submitRating()">
+            {{ ratingSubmitting ? 'Submitting...' : 'Submit Rating' }}
+          </button>
         </div>
       </div>
     </div>
@@ -1337,3 +1365,37 @@
   </div>
 </div>
 <app-chatbot></app-chatbot>
+
+<!-- ════════ MOBILE BOTTOM NAV ════════ -->
+<nav class="mobile-bottom-nav">
+  <a class="mbn-item" [class.active]="activeSection === 'home'" (click)="setSection('home')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+    </svg>
+    <span>Home</span>
+  </a>
+  <a class="mbn-item" [class.active]="activeSection === 'deliveries'" (click)="setSection('deliveries')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/>
+    </svg>
+    <span>Deliveries</span>
+  </a>
+  <a class="mbn-item" [class.active]="activeSection === 'wallet'" (click)="setSection('wallet')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+    </svg>
+    <span>Wallet</span>
+  </a>
+  <a class="mbn-item" [class.active]="activeSection === 'intercity'" (click)="setSection('intercity')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M8 17l4-4 4 4M12 3v10M3 12a9 9 0 1018 0 9 9 0 00-18 0z"/>
+    </svg>
+    <span>Intercity</span>
+  </a>
+  <a class="mbn-item" [class.active]="activeSection === 'services'" (click)="setSection('services')">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+    </svg>
+    <span>Services</span>
+  </a>
+</nav>

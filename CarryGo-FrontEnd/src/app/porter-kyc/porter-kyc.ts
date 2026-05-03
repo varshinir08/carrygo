@@ -6,6 +6,8 @@ import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 import { UserService } from '../services/user-service';
 import { PorterStatusService } from '../services/porter-status.service';
+import { of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 export interface KycFormData {
   // Step 1 – Personal
@@ -73,6 +75,9 @@ export class PorterKycComponent implements OnInit {
   statusToast = '';
   earningsToday = 0;
   showProfileDropdown = false;
+  showNotifPanel = false;
+  orderRequests: any[] = [];
+  notificationCount = 0;
 
   steps: StepConfig[] = [
     { label: 'Personal',  icon: 'person' },
@@ -131,6 +136,7 @@ export class PorterKycComponent implements OnInit {
         this.form.fullName = p.name  ?? '';
         this.form.phone    = p.phone ?? '';
         this.form.email    = p.email ?? '';
+        this.loadPendingOrders(p.userId);
         this.cdr.detectChanges();
         this.userService.getWalletByUserId(p.userId).subscribe({
           next: (w: any) => {
@@ -316,12 +322,26 @@ export class PorterKycComponent implements OnInit {
     this.userInitials = parts.slice(0, 2).map((p: string) => p[0].toUpperCase()).join('');
   }
 
-  toggleProfileDropdown(): void { this.showProfileDropdown = !this.showProfileDropdown; }
+  toggleProfileDropdown(): void { this.showProfileDropdown = !this.showProfileDropdown; this.showNotifPanel = false; }
+
+  toggleNotifPanel(): void { this.showNotifPanel = !this.showNotifPanel; this.showProfileDropdown = false; }
+
+  loadPendingOrders(userId: number): void {
+    this.http.get<any[]>(`${this.apiBase}/deliveries/matched/${userId}`)
+      .pipe(catchError(() => of([] as any[])))
+      .subscribe(orders => {
+        this.orderRequests = orders.filter(o => o.pickupAddress?.trim() && o.dropAddress?.trim());
+        this.notificationCount = this.orderRequests.length;
+        this.cdr.detectChanges();
+      });
+  }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     const el = document.querySelector('.profile-section');
     if (el && !el.contains(event.target as Node)) this.showProfileDropdown = false;
+    const notifEl = document.querySelector('.notif-wrap');
+    if (notifEl && !notifEl.contains(event.target as Node)) this.showNotifPanel = false;
   }
 
   logout(): void { this.authService.logout(); this.router.navigate(['/login']); }

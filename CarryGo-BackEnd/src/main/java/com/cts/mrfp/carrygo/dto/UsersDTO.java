@@ -28,6 +28,7 @@ public class UsersDTO {
     private String vehicleNumber;
     private String vehicleModel;
     private Boolean isOnline;
+    private Double avgRating;
 
     // Constructors
     public UsersDTO() {}
@@ -91,4 +92,6 @@ public class UsersDTO {
 
     public Boolean getIsOnline() { return isOnline; }
     public void setIsOnline(Boolean isOnline) { this.isOnline = isOnline; }
+    public Double getAvgRating() { return avgRating; }
+    public void setAvgRating(Double avgRating) { this.avgRating = avgRating; }
 }

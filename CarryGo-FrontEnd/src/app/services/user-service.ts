@@ -13,6 +13,7 @@ export interface PorterProfile {
   licenceExpiry?: string;
   role: string;
   isOnline?: boolean;
+  avgRating?: number | null;
 }
 
 export interface WalletData {

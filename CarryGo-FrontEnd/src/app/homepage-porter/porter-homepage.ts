@@ -46,6 +46,7 @@ interface PorterProfile {
   licenceExpiry?: string;
   role: string;
   isOnline?: boolean;
+  avgRating?: number | null;
 }
 
 interface WalletData {
@@ -76,6 +77,7 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   earningsToday = 0;
   walletBalance = 0;
   notificationCount = 0;
+  showNotifPanel = false;
   userInitials  = '';
   errorMessage  = '';
   showProfileDropdown = false;
@@ -90,7 +92,6 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
   todayDeliveries  = 0;
   activeOrdersCount = 0;
   completedCount   = 0;
-
   // Chart data (last 7 days)
   weekLabels:    string[] = [];
   weekDeliveries: number[] = [];
@@ -889,12 +890,16 @@ export class PorterDashboardComponent implements OnInit, OnDestroy, AfterViewIni
     this.userInitials = parts.slice(0, 2).map(p => p[0].toUpperCase()).join('');
   }
 
-  toggleProfileDropdown(): void { this.showProfileDropdown = !this.showProfileDropdown; }
+  toggleNotifPanel(): void { this.showNotifPanel = !this.showNotifPanel; this.showProfileDropdown = false; }
+
+  toggleProfileDropdown(): void { this.showProfileDropdown = !this.showProfileDropdown; this.showNotifPanel = false; }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    const el = document.querySelector('.profile-section');
-    if (el && !el.contains(event.target as Node)) this.showProfileDropdown = false;
+    const profileEl = document.querySelector('.profile-section');
+    if (profileEl && !profileEl.contains(event.target as Node)) this.showProfileDropdown = false;
+    const notifEl = document.querySelector('.notif-wrap');
+    if (notifEl && !notifEl.contains(event.target as Node)) this.showNotifPanel = false;
   }
 
   goToUserDashboard(): void {
