@@ -329,7 +329,11 @@
 }
 
 /* Mobile */
+@media (max-width: 768px) {
+  :host { bottom: 74px; right: 12px; }
+}
 @media (max-width: 480px) {
-  :host { bottom: 16px; right: 16px; }
-  .cb-window { width: calc(100vw - 32px); right: 0; }
+  :host { bottom: 74px; right: 10px; }
+  .cb-window { width: calc(100vw - 20px); right: 0; max-height: 65vh; }
+  .cb-fab { width: 48px; height: 48px; }
 }

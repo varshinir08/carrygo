@@ -20,7 +20,7 @@ public class DTOConverter {
         if (user == null) {
             return null;
         }
-        return new UsersDTO(
+        UsersDTO dto = new UsersDTO(
             user.getUserId(),
             user.getName(),
             user.getEmail(),
@@ -35,6 +35,8 @@ public class DTOConverter {
             user.getVehicleModel(),
             user.getIsOnline()
         );
+        dto.setAvgRating(user.getAvgRating());
+        return dto;
     }
 
     public static Users convertDTOToUsers(UsersDTO dto) {

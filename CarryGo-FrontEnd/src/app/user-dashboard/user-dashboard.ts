@@ -231,6 +231,7 @@ export class UserDashboard implements OnInit, OnDestroy {
     const loggedInUser = this.authService.getCurrentUser();
     if (loggedInUser) {
       this.user = loggedInUser;
+      this.restoreRatedDeliveries();
       this.loadData();
       this.loadRecentLocations();
       this.loadTxns();
@@ -320,6 +321,7 @@ export class UserDashboard implements OnInit, OnDestroy {
         this.deliveries = [...deliveries].reverse();
         this.wallet     = wallet;
         this.extractRecentLocations(deliveries);
+        this.loadRatedDeliveries();
         // Bug 3 fix: restore broadcast bar after reload if there's an active PENDING order
         if (this.bookingStep !== 'booked') {
           const pending = deliveries.find((d: any) =>
@@ -1063,6 +1065,97 @@ export class UserDashboard implements OnInit, OnDestroy {
 
   canChat(d: any): boolean {
     return !!d.commuterId && ['ACCEPTED','ARRIVED_AT_PICKUP','PICKED_UP'].includes((d.status || '').toUpperCase());
+  }
+
+  /* ─────────────── Ratings ─────────────── */
+
+  ratedDeliveryIds = new Set<number>();
+  private readonly RATED_KEY = 'cg_rated_deliveries';
+  showRatingModal  = false;
+  ratingDelivery:  any = null;
+  ratingStars      = 0;
+  ratingComment    = '';
+  ratingSubmitting = false;
+  ratingError      = '';
+
+  private restoreRatedDeliveries(): void {
+    try {
+      const key = `${this.RATED_KEY}_${this.user.userId}`;
+      const stored = localStorage.getItem(key);
+      if (stored) JSON.parse(stored).forEach((id: number) => this.ratedDeliveryIds.add(id));
+    } catch {}
+  }
+
+  private persistRatedDelivery(deliveryId: number): void {
+    try {
+      const key = `${this.RATED_KEY}_${this.user.userId}`;
+      const stored = localStorage.getItem(key);
+      const ids: number[] = stored ? JSON.parse(stored) : [];
+      if (!ids.includes(deliveryId)) {
+        ids.push(deliveryId);
+        localStorage.setItem(key, JSON.stringify(ids));
+      }
+    } catch {}
+  }
+
+  loadRatedDeliveries(): void {
+    const delivered = this.deliveries.filter(d =>
+      (d.status || '').toUpperCase() === 'DELIVERED' && d.commuterId && !this.ratedDeliveryIds.has(d.deliveryId)
+    );
+    delivered.forEach(d => {
+      this.http.get<{ rated: boolean }>(`${this.apiBase}/ratings/delivery/${d.deliveryId}/exists`)
+        .pipe(catchError(() => of({ rated: false })))
+        .subscribe(res => {
+          if (res.rated) {
+            this.ratedDeliveryIds.add(d.deliveryId);
+            this.persistRatedDelivery(d.deliveryId);
+          }
+          this.cdr.detectChanges();
+        });
+    });
+  }
+
+  openRatingModal(delivery: any): void {
+    this.ratingDelivery  = delivery;
+    this.ratingStars     = 0;
+    this.ratingComment   = '';
+    this.ratingError     = '';
+    this.showRatingModal = true;
+  }
+
+  closeRatingModal(): void {
+    this.showRatingModal = false;
+    this.ratingDelivery  = null;
+  }
+
+  setRatingStar(star: number): void {
+    this.ratingStars = star;
+  }
+
+  submitRating(): void {
+    if (this.ratingStars < 1 || this.ratingSubmitting) return;
+    this.ratingSubmitting = true;
+    this.ratingError      = '';
+
+    const payload = {
+      deliveryId:  this.ratingDelivery.deliveryId,
+      senderId:    this.user.userId,
+      commuterId:  this.ratingDelivery.commuterId,
+      rating:      this.ratingStars,
+      comment:     this.ratingComment.trim() || null,
+    };
+
+    this.http.post(`${this.apiBase}/ratings`, payload)
+      .pipe(catchError(err => { this.ratingError = 'Failed to submit. Please try again.'; return of(null); }))
+      .subscribe(res => {
+        this.ratingSubmitting = false;
+        if (res !== null) {
+          this.ratedDeliveryIds.add(this.ratingDelivery.deliveryId);
+          this.persistRatedDelivery(this.ratingDelivery.deliveryId);
+          this.closeRatingModal();
+        }
+        this.cdr.detectChanges();
+      });
   }
 
   /* ─────────────── Commuter routing ─────────────── */

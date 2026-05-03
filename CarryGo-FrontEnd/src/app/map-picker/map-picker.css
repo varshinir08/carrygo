@@ -440,6 +440,13 @@
     width: 100%;
     min-width: unset;
     max-height: 45vh;
+    overflow-y: auto;
   }
   .mp-map-wrap { flex: 1; }
+}
+@media (max-width: 480px) {
+  .mp-modal { width: 100vw; height: 100vh; border-radius: 0; }
+  .mp-panel { max-height: 40vh; }
+  .mp-panel-header { padding: 12px 14px; }
+  .mp-confirm-btn, .mp-cancel-btn { padding: 10px 16px; font-size: 13px; }
 }

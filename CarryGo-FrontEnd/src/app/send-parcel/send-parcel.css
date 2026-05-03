@@ -698,3 +698,18 @@
   .sp-header { padding: 12px 16px; }
   .sp-body { padding: 20px 16px 40px; }
 }
+@media (max-width: 640px) {
+  .sp-size-cards { grid-template-columns: repeat(2, 1fr); }
+  .sp-vehicle-chips { flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+  .sp-header { padding: 10px 12px; }
+  .sp-body { padding: 14px 12px 40px; gap: 14px; }
+  .sp-card { padding: 14px; border-radius: 10px; }
+  .sp-size-cards { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sp-pkg-row { grid-template-columns: 1fr; }
+  .sp-submit-btn, .sp-estimate-btn { padding: 12px; font-size: 14px; }
+}
+@media (max-width: 360px) {
+  .sp-size-cards { grid-template-columns: 1fr; }
+}

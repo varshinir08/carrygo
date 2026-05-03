@@ -21,6 +21,7 @@ interface PorterProfile {
   licenceExpiry?: string;
   role: string;
   isOnline?: boolean;
+  avgRating?: number | null;
 }
 
 interface Delivery {
@@ -60,6 +61,9 @@ export class PorterProfileComponent implements OnInit {
   statusToast = '';
   earningsToday = 0;
   showProfileDropdown = false;
+  showNotifPanel = false;
+  orderRequests: any[] = [];
+  notificationCount = 0;
 
   // Profile data
   profile: PorterProfile | null = null;
@@ -69,7 +73,7 @@ export class PorterProfileComponent implements OnInit {
   // Computed stats
   totalDeliveries = 0;
   thisMonthEarnings = 0;
-  completionRate = 0;
+  avgRating: number | null = null;
 
   // Edit modals
   showEditPersonal = false;
@@ -120,6 +124,7 @@ export class PorterProfileComponent implements OnInit {
         this.profile = p;
         this.statusService.init(p.userId);
         this.generateInitials(p.name);
+        this.loadPendingOrders(p.userId);
         this.cdr.detectChanges();
         if (!paramId) {
           this.loadAllData(p.userId);
@@ -132,12 +137,15 @@ export class PorterProfileComponent implements OnInit {
   loadAllData(userId: number): void {
     forkJoin({
       wallet:     this.userService.getWalletByUserId(userId).pipe(catchError(() => of({ balance: 0 }))),
-      deliveries: this.http.get<Delivery[]>(`${this.apiBase}/deliveries/commuter/${userId}`).pipe(catchError(() => of([])))
+      deliveries: this.http.get<Delivery[]>(`${this.apiBase}/deliveries/commuter/${userId}`).pipe(catchError(() => of([]))),
+      avgRating:  this.http.get<any>(`${this.apiBase}/ratings/commuter/${userId}/average`).pipe(catchError(() => of({ avgRating: 0 })))
     }).subscribe({
-      next: ({ wallet, deliveries }) => {
+      next: ({ wallet, deliveries, avgRating }) => {
         this.walletBalance = (wallet as any).balance ?? 0;
         this.deliveries    = deliveries as Delivery[];
         this.computeStats();
+        const val = (avgRating as any).avgRating;
+        this.avgRating = (val != null && val > 0) ? Math.round(val * 10) / 10 : null;
         this.cdr.detectChanges();
       }
     });
@@ -148,8 +156,6 @@ export class PorterProfileComponent implements OnInit {
 
     this.totalDeliveries = this.deliveries.length;
     const delivered = this.deliveries.filter(d => (d.status || '').toUpperCase() === 'DELIVERED');
-    this.completionRate = this.totalDeliveries > 0
-      ? Math.round((delivered.length / this.totalDeliveries) * 100) : 0;
 
     this.earningsToday = delivered
       .filter(d => new Date(d.createdAt).toDateString() === now.toDateString())
@@ -296,7 +302,19 @@ export class PorterProfileComponent implements OnInit {
     this.userInitials = parts.slice(0, 2).map((p: string) => p[0].toUpperCase()).join('');
   }
 
-  toggleProfileDropdown(): void { this.showProfileDropdown = !this.showProfileDropdown; }
+  toggleProfileDropdown(): void { this.showProfileDropdown = !this.showProfileDropdown; this.showNotifPanel = false; }
+
+  toggleNotifPanel(): void { this.showNotifPanel = !this.showNotifPanel; this.showProfileDropdown = false; }
+
+  loadPendingOrders(userId: number): void {
+    this.http.get<any[]>(`${this.apiBase}/deliveries/matched/${userId}`)
+      .pipe(catchError(() => of([] as any[])))
+      .subscribe(orders => {
+        this.orderRequests = orders.filter(o => o.pickupAddress?.trim() && o.dropAddress?.trim());
+        this.notificationCount = this.orderRequests.length;
+        this.cdr.detectChanges();
+      });
+  }
 
   closeModals(): void { this.showEditPersonal = false; this.showEditVehicle = false; }
 
@@ -307,6 +325,8 @@ export class PorterProfileComponent implements OnInit {
   onDocumentClick(event: MouseEvent): void {
     const el = document.querySelector('.profile-section');
     if (el && !el.contains(event.target as Node)) this.showProfileDropdown = false;
+    const notifEl = document.querySelector('.notif-wrap');
+    if (notifEl && !notifEl.contains(event.target as Node)) this.showNotifPanel = false;
   }
 
   logout(): void { this.authService.logout(); this.router.navigate(['/login']); }

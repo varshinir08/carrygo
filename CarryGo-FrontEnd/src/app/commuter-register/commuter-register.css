@@ -155,6 +155,18 @@ input:focus, select:focus {
 .cr-info-box ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
 .cr-info-box li { font-size: 0.875rem; }
 
+@media (max-width: 640px) {
+  .form-row { flex-direction: column; gap: 0; }
+}
+
 @media (max-width: 480px) {
-  .cr-card { padding: 1.25rem; }
+  .cr-page { padding: 0; align-items: stretch; }
+  .cr-card { padding: 1.25rem; border-radius: 0; min-height: 100vh; box-shadow: none; }
+  .cr-title { font-size: 1.2rem; }
+  .benefits-row { gap: 0.4rem; }
+}
+
+@media (max-width: 360px) {
+  .cr-card { padding: 1rem; }
+  .submit-btn { font-size: 0.9rem; }
 }
